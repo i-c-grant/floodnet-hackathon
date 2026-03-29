@@ -19,9 +19,24 @@ import duckdb
 import numpy as np
 import pandas as pd
 from shapely import wkt as shapely_wkt
-from shapely.geometry import LinearRing, mapping
+from shapely.geometry import LinearRing, mapping, shape
 
 _INTERP_PTS = 64   # vertices per resampled polygon ring for interpolation
+
+
+def _dominant(geojson):
+    """
+    Normalise a GeoJSON Polygon or MultiPolygon to a single Polygon by returning
+    the largest sub-polygon by area.  Returns None if geojson is None.
+    """
+    if geojson is None:
+        return None
+    if geojson["type"] == "Polygon":
+        return geojson
+    # MultiPolygon — pick the largest component
+    geom = shape(geojson)
+    largest = max(geom.geoms, key=lambda g: g.area)
+    return mapping(largest)
 
 
 def _resample_ring(ring_coords):
@@ -43,16 +58,18 @@ def _align_rotation(a, b):
 def _interpolate_frames(contour_rows, interval_ms=60_000):
     """
     Expand MRMS contour rows to interval_ms resolution by linearly interpolating
-    polygon vertices between adjacent Polygon frames.
+    polygon vertices between adjacent frames.
 
-    MultiPolygon and None frames are passed through unchanged; interpolation only
-    spans Polygon → Polygon boundaries.
+    Each frame is normalised to its dominant (largest-area) polygon before
+    interpolation, eliminating jumps caused by MultiPolygon → Polygon transitions.
+    None frames (below threshold) pass through unchanged; interpolation is skipped
+    across any None boundary.
     """
     base = []
     for t, geom_wkt in contour_rows:
         t_ms = int(pd.Timestamp(t).timestamp() * 1000)
-        geojson = mapping(shapely_wkt.loads(geom_wkt)) if geom_wkt else None
-        base.append({"t_ms": t_ms, "geojson": geojson})
+        raw = mapping(shapely_wkt.loads(geom_wkt)) if geom_wkt else None
+        base.append({"t_ms": t_ms, "geojson": _dominant(raw)})
 
     result = []
     for i, f0 in enumerate(base):
@@ -62,7 +79,7 @@ def _interpolate_frames(contour_rows, interval_ms=60_000):
         f1 = base[i + 1]
 
         g0, g1 = f0["geojson"], f1["geojson"]
-        if not (g0 and g1 and g0["type"] == "Polygon" and g1["type"] == "Polygon"):
+        if not (g0 and g1):
             continue
 
         a = _resample_ring(g0["coordinates"][0])
