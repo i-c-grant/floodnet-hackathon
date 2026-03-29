@@ -23,6 +23,15 @@ services:
     entrypoint: ["python", "pipeline.py"]
     # docker compose run --rm pipeline --start 2024-09-01 --end 2024-09-30
 
+  mrms:
+    build: .
+    env_file: .env
+    volumes:
+      - ./output:/app/output
+    entrypoint: ["python", "query_mrms.py"]
+    # docker compose run --rm mrms
+    # docker compose run --rm mrms --storm-id 504 --interval-min 5
+
   genmap:
     build: .
     env_file: .env

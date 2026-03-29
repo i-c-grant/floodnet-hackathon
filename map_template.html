@@ -182,6 +182,10 @@
     <div class="lg-dot" style="background:#e74c3c;"></div>
     <span>311 complaint</span>
   </div>
+  <div class="lg-row" id="mrms-legend-row" style="display:none;">
+    <div class="lg-dot" style="background:rgba(65,182,230,0.35); border:2px solid rgba(30,140,210,0.8); border-radius:3px;"></div>
+    <span>VIL ≥ 4 kg/m²</span>
+  </div>
 </div>
 
 <div id="timeline">
@@ -209,12 +213,30 @@ const COMPLAINTS     = __COMPLAINTS__;
 const STORM_START_MS = __STORM_START_MS__;
 const STORM_END_MS   = __STORM_END_MS__;
 const MAX_DEPTH      = __MAX_DEPTH__;
+// MRMS VIL contours: [{t_ms, geojson}, ...] sorted by t_ms.
+// geojson is a GeoJSON geometry (Polygon/MultiPolygon) or null when below threshold.
+// Empty array if query_mrms.py has not been run.
+const MRMS_FRAMES    = __MRMS_FRAMES__;
 
 // ── Constants ──────────────────────────────────────────────────────
 const FADE_MS     = 1.5 * 3600 * 1000;     // 311 complaint fade window
 const STORM_MS    = STORM_END_MS - STORM_START_MS;
 // Base speed: storm minutes per real second at 1×
 const BASE_SPEED  = 10 * 60 * 1000;        // 10 storm-min / real-sec
+
+// ── MRMS VIL helpers ───────────────────────────────────────────────
+const mrmsTimes = MRMS_FRAMES.map(f => f.t_ms);
+
+// Binary search: index of the last MRMS frame at or before t_ms (-1 if none)
+function mrmsIdxAt(t_ms) {
+  if (!mrmsTimes.length) return -1;
+  let lo = -1, hi = mrmsTimes.length;
+  while (lo + 1 < hi) {
+    const mid = (lo + hi) >> 1;
+    if (mrmsTimes[mid] <= t_ms) lo = mid; else hi = mid;
+  }
+  return lo;
+}
 
 // ── Colour: light-gray → #08306b ──────────────────────────────────
 function depthToRGB(depth) {
@@ -281,7 +303,7 @@ const TOOLTIP_STYLE = {
 
 // ── deck.gl setup ─────────────────────────────────────────────────
 // Use deck.Deck (vanilla JS class), not deck.DeckGL (React wrapper).
-const { Deck, TileLayer, ScatterplotLayer, BitmapLayer } = deck;
+const { Deck, TileLayer, ScatterplotLayer, BitmapLayer, GeoJsonLayer } = deck;
 
 // Create and size the canvas manually so it fills the container.
 const canvas = document.createElement('canvas');
@@ -345,6 +367,25 @@ function buildLayers(t_ms) {
         });
       },
     }),
+
+    // MRMS VIL ≥ 4 kg/m² contour — GeoJsonLayer, nearest-neighbour lookup.
+    // Skipped when no MRMS data or current frame is below threshold (geojson null).
+    ...((() => {
+      const idx = mrmsIdxAt(t_ms);
+      if (idx < 0) return [];
+      const geojson = MRMS_FRAMES[idx].geojson;
+      if (!geojson) return [];
+      return [new GeoJsonLayer({
+        id: 'mrms',
+        data: { type: 'Feature', geometry: geojson, properties: {} },
+        filled: true,
+        stroked: true,
+        getFillColor: [65, 182, 230, 60],
+        getLineColor: [30, 140, 210, 200],
+        getLineWidth: 1,
+        lineWidthMinPixels: 1,
+      })];
+    })()),
 
     // ALL sensors in one stable layer — sensors never leave, they just
     // change size and colour. Eliminates the quiet↔active swap flicker.
@@ -456,6 +497,11 @@ document.getElementById('scrubber').addEventListener('input', e => {
 window.addEventListener('resize', () => {
   deckgl.setProps({ width: window.innerWidth, height: window.innerHeight });
 });
+
+// Show MRMS legend row only when data is present
+if (MRMS_FRAMES.length > 0) {
+  document.getElementById('mrms-legend-row').style.display = '';
+}
 
 // Initial render
 render(currentT);

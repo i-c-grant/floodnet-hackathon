@@ -17,11 +17,13 @@ from pathlib import Path
 
 import duckdb
 import pandas as pd
+from shapely import wkt as shapely_wkt
+from shapely.geometry import mapping
 
-DB_PATH = Path("output/floodnet.duckdb")
+DB_PATH       = Path("output/floodnet.duckdb")
 TEMPLATE_PATH = Path("map_template.html")
-OUT_PATH = Path("output/storm_oct30.html")
-STORM_ID = 504
+OUT_PATH      = Path("output/storm_oct30.html")
+STORM_ID      = 504
 
 
 def main():
@@ -66,7 +68,24 @@ def main():
         WHERE storm_id = ? AND latitude IS NOT NULL AND longitude IS NOT NULL
     """, [STORM_ID]).df()
 
+    # ------------------------------------------------------------------
+    # MRMS contours — {t_ms, geojson} per frame; geojson is None when
+    # VIL was below threshold (rendered as no layer in the map).
+    # ------------------------------------------------------------------
+    contour_rows = con.execute("""
+        SELECT timestamp_utc, geom_wkt
+        FROM mrms_contours
+        WHERE storm_id = ?
+        ORDER BY timestamp_utc
+    """, [STORM_ID]).fetchall()
+
     con.close()
+
+    mrms_frames: list = []
+    for t, geom_wkt in contour_rows:
+        t_ms = int(pd.Timestamp(t).timestamp() * 1000)
+        geojson = mapping(shapely_wkt.loads(geom_wkt)) if geom_wkt else None
+        mrms_frames.append({"t_ms": t_ms, "geojson": geojson})
 
     # ------------------------------------------------------------------
     # Build per-sensor flood time series
@@ -150,6 +169,7 @@ def main():
         .replace("__STORM_START_MS__", str(storm_start_ms))
         .replace("__STORM_END_MS__",   str(storm_end_ms))
         .replace("__MAX_DEPTH__",      f"{max_depth:.4f}")
+        .replace("__MRMS_FRAMES__",    json.dumps(mrms_frames))
     )
 
     OUT_PATH.parent.mkdir(exist_ok=True)
