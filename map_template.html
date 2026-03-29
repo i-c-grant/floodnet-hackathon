@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FloodNet NYC — Oct 30 Storm</title>
+  <script src="https://unpkg.com/deck.gl@8.9.36/dist.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #e5e3df;
+    }
+
+    #container { width: 100vw; height: 100vh; }
+
+    /* ── Floating timeline bar ──────────────────────────────────── */
+    #timeline {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(700px, calc(100vw - 40px));
+      background: rgba(12, 12, 20, 0.86);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 18px;
+      padding: 14px 18px 12px;
+      color: #fff;
+      z-index: 100;
+      user-select: none;
+    }
+
+    #tl-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    #current-time {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #storm-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: rgba(255, 255, 255, 0.38);
+    }
+
+    #tl-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #play-btn {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.12s;
+      line-height: 1;
+    }
+    #play-btn:hover { background: rgba(255, 255, 255, 0.22); }
+
+    #scrubber {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.16);
+      outline: none;
+      cursor: pointer;
+    }
+    #scrubber::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      cursor: pointer;
+    }
+    #scrubber::-moz-range-thumb {
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      background: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    #speed-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #fff;
+      border-radius: 7px;
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      outline: none;
+      min-width: 40px;
+      text-align: center;
+    }
+    #speed-select option { background: #1a1a2e; color: #fff; }
+
+    /* ── Legend ─────────────────────────────────────────────────── */
+    #legend {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #222;
+      z-index: 100;
+      line-height: 1;
+    }
+
+    .lg-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .lg-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 5px;
+    }
+    .lg-row:last-child { margin-bottom: 0; }
+
+    .lg-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Tooltip ─────────────────────────────────────────────────── */
+    /* deck.gl injects tooltip via getTooltip — we style via the
+       returned style object, not CSS class */
+  </style>
+</head>
+<body>
+
+<div id="container"></div>
+
+<div id="legend">
+  <div class="lg-title">Legend</div>
+  <div class="lg-row">
+    <div class="lg-dot" style="background:#aaaaaa; opacity:0.75;"></div>
+    <span>Sensor — idle</span>
+  </div>
+  <div class="lg-row">
+    <div class="lg-dot" style="background:#08306b;"></div>
+    <span>Sensor — flooding</span>
+  </div>
+  <div class="lg-row">
+    <div class="lg-dot" style="background:#e74c3c;"></div>
+    <span>311 complaint</span>
+  </div>
+</div>
+
+<div id="timeline">
+  <div id="tl-header">
+    <span id="current-time">—</span>
+    <span id="storm-label">Storm · Oct 30 – 31, 2025</span>
+  </div>
+  <div id="tl-controls">
+    <button id="play-btn" aria-label="Play">&#9654;</button>
+    <input type="range" id="scrubber" min="0" max="10000" value="0" aria-label="Timeline">
+    <select id="speed-select" aria-label="Speed">
+      <option value="1">1×</option>
+      <option value="2">2×</option>
+      <option value="4" selected>4×</option>
+      <option value="8">8×</option>
+    </select>
+  </div>
+</div>
+
+<script>
+// ── Embedded data (injected by generate_map.py) ───────────────────
+const SENSOR_LOCS    = __SENSOR_LOCS__;
+const FLOOD_SERIES   = __FLOOD_SERIES__;
+const COMPLAINTS     = __COMPLAINTS__;
+const STORM_START_MS = __STORM_START_MS__;
+const STORM_END_MS   = __STORM_END_MS__;
+const MAX_DEPTH      = __MAX_DEPTH__;
+
+// ── Constants ──────────────────────────────────────────────────────
+const FADE_MS     = 1.5 * 3600 * 1000;     // 311 complaint fade window
+const STORM_MS    = STORM_END_MS - STORM_START_MS;
+// Base speed: storm minutes per real second at 1×
+const BASE_SPEED  = 10 * 60 * 1000;        // 10 storm-min / real-sec
+
+// ── Colour: light-gray → #08306b ──────────────────────────────────
+function depthToRGB(depth) {
+  const t = Math.min(depth / MAX_DEPTH, 1.0);
+  return [
+    Math.round(204 + t * (  8 - 204)),
+    Math.round(204 + t * ( 48 - 204)),
+    Math.round(204 + t * (107 - 204)),
+  ];
+}
+
+// ── Pre-process flood series into a Map ───────────────────────────
+// Each entry: sorted array of [t_ms, depth]
+const floodMap = new Map(Object.entries(FLOOD_SERIES));
+
+// ── Binary-search depth interpolation ────────────────────────────
+function depthAt(sensorId, t_ms) {
+  const s = floodMap.get(sensorId);
+  if (!s || s.length === 0) return null;
+
+  // Binary search for the last point <= t_ms
+  let lo = -1, hi = s.length;
+  while (lo + 1 < hi) {
+    const mid = (lo + hi) >> 1;
+    if (s[mid][0] <= t_ms) lo = mid; else hi = mid;
+  }
+
+  if (lo === -1) return null;  // before the flood started
+
+  // Don't extend more than 90s past the last known point
+  if (t_ms - s[lo][0] > 90000) return null;
+
+  if (hi >= s.length) return s[lo][1];  // past last point but within window
+
+  // Linear interpolation between lo and hi
+  const frac = (t_ms - s[lo][0]) / (s[hi][0] - s[lo][0]);
+  return s[lo][1] + frac * (s[hi][1] - s[lo][1]);
+}
+
+// ── Build per-frame layer data ─────────────────────────────────────
+function getLayerData(t_ms) {
+  const active = [], quiet = [];
+  for (const s of SENSOR_LOCS) {
+    const d = depthAt(s.id, t_ms);
+    if (d !== null && d > 0) active.push({ ...s, depth: d });
+    else quiet.push(s);
+  }
+
+  const visible311 = COMPLAINTS
+    .filter(c => c.created_ms <= t_ms && t_ms - c.created_ms <= FADE_MS)
+    .map(c => ({ ...c, opacity: 1.0 - (t_ms - c.created_ms) / FADE_MS }));
+
+  return { active, quiet, visible311 };
+}
+
+// ── Tooltip helper ─────────────────────────────────────────────────
+const TOOLTIP_STYLE = {
+  background: 'rgba(12,12,20,0.92)',
+  color: '#fff',
+  fontSize: '12px',
+  lineHeight: '1.6',
+  padding: '8px 12px',
+  borderRadius: '9px',
+  border: '1px solid rgba(255,255,255,0.1)',
+  pointerEvents: 'none',
+  maxWidth: '220px',
+};
+
+// ── deck.gl setup ─────────────────────────────────────────────────
+const { DeckGL, TileLayer, ScatterplotLayer, BitmapLayer } = deck;
+
+const deckgl = new DeckGL({
+  container: 'container',
+  initialViewState: {
+    longitude: -73.9760,
+    latitude:   40.7128,
+    zoom:       10,
+    pitch:       0,
+    bearing:     0,
+  },
+  controller: true,
+  layers: [],
+  getTooltip({ object, layer }) {
+    if (!object) return null;
+    const id = layer && layer.id;
+    let html;
+    if (id === 'active') {
+      html = `<b>${object.name}</b><br>${object.borough || '—'}<br>`
+           + `<span style="color:#7ab9f5">${object.depth.toFixed(1)} in depth</span>`;
+    } else if (id === 'quiet') {
+      html = `<b>${object.name}</b><br>${object.borough || '—'}<br>`
+           + `<span style="opacity:0.55">No active flood</span>`;
+    } else if (id === 'complaints') {
+      html = `<b>311: ${object.descriptor}</b><br>${object.borough || '—'}`;
+    } else {
+      return null;
+    }
+    return { html, style: TOOLTIP_STYLE };
+  },
+});
+
+function buildLayers(t_ms) {
+  const { active, quiet, visible311 } = getLayerData(t_ms);
+
+  return [
+    // Basemap — CartoDB Positron raster tiles
+    new TileLayer({
+      id: 'basemap',
+      data: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+      maxZoom: 19, minZoom: 0,
+      renderSubLayers(props) {
+        const { west, south, east, north } = props.tile.bbox;
+        return new BitmapLayer(props, {
+          data: null,
+          image: props.tile.data,
+          bounds: [west, south, east, north],
+        });
+      },
+    }),
+
+    // Quiet (idle) sensors — small, muted gray
+    new ScatterplotLayer({
+      id: 'quiet',
+      data: quiet,
+      getPosition: d => [d.lon, d.lat],
+      getRadius: 280,
+      radiusUnits: 'meters',
+      radiusMinPixels: 3,
+      radiusMaxPixels: 12,
+      getFillColor: [170, 170, 170, 190],
+      pickable: true,
+    }),
+
+    // Active (flooding) sensors — blue scale, sized by depth
+    new ScatterplotLayer({
+      id: 'active',
+      data: active,
+      getPosition: d => [d.lon, d.lat],
+      getRadius: d => 280 + 900 * Math.min(d.depth / MAX_DEPTH, 1.0),
+      radiusUnits: 'meters',
+      radiusMinPixels: 5,
+      radiusMaxPixels: 36,
+      getFillColor: d => [...depthToRGB(d.depth), 230],
+      pickable: true,
+      updateTriggers: { getRadius: t_ms, getFillColor: t_ms },
+    }),
+
+    // 311 complaints — red, fade over 1.5 h
+    new ScatterplotLayer({
+      id: 'complaints',
+      data: visible311,
+      getPosition: d => [d.lon, d.lat],
+      getRadius: 200,
+      radiusUnits: 'meters',
+      radiusMinPixels: 3,
+      radiusMaxPixels: 9,
+      getFillColor: d => [231, 76, 60, Math.round(255 * d.opacity)],
+      pickable: true,
+      updateTriggers: { getFillColor: t_ms },
+    }),
+  ];
+}
+
+// ── Animation state ────────────────────────────────────────────────
+let currentT  = STORM_START_MS;
+let isPlaying = false;
+let prevRaf   = null;
+
+function getSpeedMultiplier() {
+  return parseFloat(document.getElementById('speed-select').value);
+}
+
+function formatET(t_ms) {
+  return new Date(t_ms).toLocaleString('en-US', {
+    timeZone:  'America/New_York',
+    month:     'short',
+    day:       'numeric',
+    hour:      '2-digit',
+    minute:    '2-digit',
+    hour12:    false,
+  }) + ' ET';
+}
+
+function render(t_ms) {
+  deckgl.setProps({ layers: buildLayers(t_ms) });
+  document.getElementById('current-time').textContent = formatET(t_ms);
+  document.getElementById('scrubber').value =
+    Math.round(((t_ms - STORM_START_MS) / STORM_MS) * 10000);
+}
+
+function tick(realTime) {
+  if (!isPlaying) return;
+  if (prevRaf !== null) {
+    const delta   = Math.min(realTime - prevRaf, 100); // cap at 100ms to avoid jump on tab refocus
+    const stormDt = delta * BASE_SPEED * getSpeedMultiplier() / 1000;
+    currentT = Math.min(currentT + stormDt, STORM_END_MS);
+    render(currentT);
+    if (currentT >= STORM_END_MS) {
+      isPlaying = false;
+      document.getElementById('play-btn').innerHTML = '&#9654;';
+      prevRaf = null;
+      return;
+    }
+  }
+  prevRaf = realTime;
+  requestAnimationFrame(tick);
+}
+
+// ── Controls ───────────────────────────────────────────────────────
+document.getElementById('play-btn').addEventListener('click', () => {
+  isPlaying = !isPlaying;
+  document.getElementById('play-btn').innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
+  if (isPlaying) {
+    if (currentT >= STORM_END_MS) currentT = STORM_START_MS;
+    prevRaf = null;
+    requestAnimationFrame(tick);
+  }
+});
+
+document.getElementById('scrubber').addEventListener('input', e => {
+  currentT = STORM_START_MS + (e.target.value / 10000) * STORM_MS;
+  render(currentT);
+});
+
+// Initial render
+render(currentT);
+</script>
+</body>
+</html>

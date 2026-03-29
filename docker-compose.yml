@@ -23,6 +23,14 @@ services:
     entrypoint: ["python", "pipeline.py"]
     # docker compose run --rm pipeline --start 2024-09-01 --end 2024-09-30
 
+  genmap:
+    build: .
+    env_file: .env
+    volumes:
+      - ./output:/app/output
+    entrypoint: ["python", "generate_map.py"]
+    # docker compose run --rm genmap
+
   dashboard:
     build: .
     env_file: .env
