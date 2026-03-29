@@ -250,6 +250,7 @@ def parse_grib(gz_bytes: bytes) -> tuple[np.ndarray, np.ndarray, np.ndarray] | N
 
 VIL_THRESHOLD  = 6.0   # kg/m²
 CLUSTER_DIST   = 0.04  # degrees (~4 km); sub-polygons within 2× this distance merge into one cluster
+SMOOTH_R       = 0.02  # degrees (~2 km); buffer radius for organic rounding of each cluster hull
 
 
 def generate_contours(con: duckdb.DuckDBPyConnection, storm_id: int) -> None:
@@ -303,9 +304,11 @@ def generate_contours(con: duckdb.DuckDBPyConnection, storm_id: int) -> None:
             for cluster in clusters:
                 members = [p for p in polys if cluster.intersects(p)]
                 if members:
-                    result_polys.append(unary_union(members).convex_hull)
+                    # buffer(SMOOTH_R, resolution=32): 32 arc segments per quarter-circle
+                    # gives dense, organically curved edges rather than a minimal convex hull
+                    result_polys.append(unary_union(members).buffer(SMOOTH_R, resolution=32))
 
-            geom     = MultiPolygon(result_polys) if len(result_polys) > 1 else result_polys[0]
+            geom     = unary_union(result_polys)   # handles mixed Polygon/MultiPolygon from buffer()
             geom_wkt = geom.wkt
             n_ok += 1
         else:

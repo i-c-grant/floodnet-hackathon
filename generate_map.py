@@ -16,9 +16,73 @@ from collections import defaultdict
 from pathlib import Path
 
 import duckdb
+import numpy as np
 import pandas as pd
 from shapely import wkt as shapely_wkt
-from shapely.geometry import mapping
+from shapely.geometry import LinearRing, mapping
+
+_INTERP_PTS = 64   # vertices per resampled polygon ring for interpolation
+
+
+def _resample_ring(ring_coords):
+    """Resample a GeoJSON ring (list of [lon,lat]) to _INTERP_PTS evenly-spaced points."""
+    ring = LinearRing(ring_coords)
+    return np.array([
+        [ring.interpolate(i / _INTERP_PTS, normalized=True).x,
+         ring.interpolate(i / _INTERP_PTS, normalized=True).y]
+        for i in range(_INTERP_PTS)
+    ])
+
+
+def _align_rotation(a, b):
+    """Return rotation index r that minimises sum-of-squared distances between a and roll(b, -r)."""
+    costs = np.array([np.sum((a - np.roll(b, -r, axis=0)) ** 2) for r in range(_INTERP_PTS)])
+    return int(np.argmin(costs))
+
+
+def _interpolate_frames(contour_rows, interval_ms=60_000):
+    """
+    Expand MRMS contour rows to interval_ms resolution by linearly interpolating
+    polygon vertices between adjacent Polygon frames.
+
+    MultiPolygon and None frames are passed through unchanged; interpolation only
+    spans Polygon → Polygon boundaries.
+    """
+    base = []
+    for t, geom_wkt in contour_rows:
+        t_ms = int(pd.Timestamp(t).timestamp() * 1000)
+        geojson = mapping(shapely_wkt.loads(geom_wkt)) if geom_wkt else None
+        base.append({"t_ms": t_ms, "geojson": geojson})
+
+    result = []
+    for i, f0 in enumerate(base):
+        result.append(f0)
+        if i + 1 >= len(base):
+            break
+        f1 = base[i + 1]
+
+        g0, g1 = f0["geojson"], f1["geojson"]
+        if not (g0 and g1 and g0["type"] == "Polygon" and g1["type"] == "Polygon"):
+            continue
+
+        a = _resample_ring(g0["coordinates"][0])
+        b = _resample_ring(g1["coordinates"][0])
+        b_aligned = np.roll(b, -_align_rotation(a, b), axis=0)
+
+        t0, t1 = f0["t_ms"], f1["t_ms"]
+        n_steps = max(1, round((t1 - t0) / interval_ms))
+
+        for step in range(1, n_steps):
+            alpha = step / n_steps
+            coords = (a + alpha * (b_aligned - a)).tolist()
+            coords.append(coords[0])  # close the ring
+            result.append({
+                "t_ms": int(t0 + alpha * (t1 - t0)),
+                "geojson": {"type": "Polygon", "coordinates": [coords]},
+            })
+
+    result.sort(key=lambda f: f["t_ms"])
+    return result
 
 DB_PATH       = Path("output/floodnet.duckdb")
 TEMPLATE_PATH = Path("map_template.html")
@@ -81,11 +145,7 @@ def main():
 
     con.close()
 
-    mrms_frames: list = []
-    for t, geom_wkt in contour_rows:
-        t_ms = int(pd.Timestamp(t).timestamp() * 1000)
-        geojson = mapping(shapely_wkt.loads(geom_wkt)) if geom_wkt else None
-        mrms_frames.append({"t_ms": t_ms, "geojson": geojson})
+    mrms_frames = _interpolate_frames(contour_rows)
 
     # ------------------------------------------------------------------
     # Build per-sensor flood time series
