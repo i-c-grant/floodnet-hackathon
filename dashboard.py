@@ -9,7 +9,6 @@ Run:
 
 import ast
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import duckdb
 import folium
@@ -232,29 +231,6 @@ def load_top_storms(start: str, end: str) -> pd.DataFrame:
         [start, end],
     )
 
-
-@st.cache_data(ttl=300)
-def load_sensor_summary(start: str, end: str) -> pd.DataFrame:
-    return q(
-        PLUVIAL_CTE + """
-        SELECT
-            fe.sensor_id,
-            fe.sensor_name,
-            fe.borough,
-            fe.latitude,
-            fe.longitude,
-            COUNT(*)                    AS flood_count,
-            AVG(fe.max_depth_inches)    AS avg_depth,
-            MAX(fe.max_depth_inches)    AS max_depth
-        FROM flood_events fe
-        JOIN storm_events se ON fe.storm_id = se.storm_id
-        JOIN pluvial_counts pc ON pc.storm_id = se.storm_id
-        WHERE se.storm_start >= ? AND se.storm_start::DATE <= ?
-          AND fe.latitude IS NOT NULL AND fe.longitude IS NOT NULL
-        GROUP BY fe.sensor_id, fe.sensor_name, fe.borough, fe.latitude, fe.longitude
-        """,
-        [start, end],
-    )
 
 
 @st.cache_data(ttl=300)
@@ -846,8 +822,8 @@ st.divider()
 st.subheader("311 Complaint Breakdown")
 col_a, col_b = st.columns(2)
 
+desc = load_descriptors(start_str, end_str)
 with col_a:
-    desc = load_descriptors(start_str, end_str)
     if not desc.empty:
         fig4 = px.bar(
             desc.sort_values("count"),
@@ -863,10 +839,9 @@ with col_a:
         st.plotly_chart(fig4, use_container_width=True)
 
 with col_b:
-    desc_top = load_descriptors(start_str, end_str)
-    if not desc_top.empty:
+    if not desc.empty:
         fig5 = px.pie(
-            desc_top.head(8),
+            desc.head(8),
             names="descriptor",
             values="count",
             title="Top descriptor share",

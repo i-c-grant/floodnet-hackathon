@@ -128,33 +128,33 @@
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border: 1px solid rgba(0, 0, 0, 0.07);
-      border-radius: 12px;
-      padding: 12px 14px;
-      font-size: 12px;
+      border-radius: 16px;
+      padding: 24px 28px;
+      font-size: 24px;
       color: #222;
       z-index: 100;
       line-height: 1;
     }
 
     .lg-title {
-      font-size: 10px;
+      font-size: 20px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: #999;
-      margin-bottom: 8px;
+      margin-bottom: 16px;
     }
 
     .lg-row {
       display: flex;
       align-items: center;
-      gap: 7px;
-      margin-bottom: 5px;
+      gap: 14px;
+      margin-bottom: 10px;
     }
     .lg-row:last-child { margin-bottom: 0; }
 
     .lg-dot {
-      width: 10px; height: 10px;
+      width: 20px; height: 20px;
       border-radius: 50%;
       flex-shrink: 0;
     }
@@ -244,30 +244,26 @@ function depthAt(sensorId, t_ms) {
 
   if (lo === -1) return null;  // before the flood started
 
-  // Don't extend more than 90s past the last known point
-  if (t_ms - s[lo][0] > 90000) return null;
+  if (hi >= s.length) {
+    // Past the last profile point — hold the final value for up to 90s
+    return t_ms - s[lo][0] > 90000 ? null : s[lo][1];
+  }
 
-  if (hi >= s.length) return s[lo][1];  // past last point but within window
-
-  // Linear interpolation between lo and hi
+  // Between two known points — always interpolate, regardless of gap size
   const frac = (t_ms - s[lo][0]) / (s[hi][0] - s[lo][0]);
   return s[lo][1] + frac * (s[hi][1] - s[lo][1]);
 }
 
-// ── Build per-frame layer data ─────────────────────────────────────
-function getLayerData(t_ms) {
-  const active = [], quiet = [];
+// ── Per-frame depth lookup (pre-computed into a plain object) ──────
+// Keeping a stable depthCache object means accessor closures always
+// read from the same reference — no layer re-initialisation needed.
+const depthCache = {};
+
+function updateDepthCache(t_ms) {
   for (const s of SENSOR_LOCS) {
     const d = depthAt(s.id, t_ms);
-    if (d !== null && d > 0) active.push({ ...s, depth: d });
-    else quiet.push(s);
+    depthCache[s.id] = (d !== null && d > 0) ? d : 0;
   }
-
-  const visible311 = COMPLAINTS
-    .filter(c => c.created_ms <= t_ms && t_ms - c.created_ms <= FADE_MS)
-    .map(c => ({ ...c, opacity: 1.0 - (t_ms - c.created_ms) / FADE_MS }));
-
-  return { active, quiet, visible311 };
 }
 
 // ── Tooltip helper ─────────────────────────────────────────────────
@@ -284,10 +280,21 @@ const TOOLTIP_STYLE = {
 };
 
 // ── deck.gl setup ─────────────────────────────────────────────────
-const { DeckGL, TileLayer, ScatterplotLayer, BitmapLayer } = deck;
+// Use deck.Deck (vanilla JS class), not deck.DeckGL (React wrapper).
+const { Deck, TileLayer, ScatterplotLayer, BitmapLayer } = deck;
 
-const deckgl = new DeckGL({
-  container: 'container',
+// Create and size the canvas manually so it fills the container.
+const canvas = document.createElement('canvas');
+Object.assign(canvas.style, {
+  position: 'absolute', top: '0', left: '0',
+  width: '100%', height: '100%',
+});
+document.getElementById('container').appendChild(canvas);
+
+const deckgl = new Deck({
+  canvas,
+  width:  window.innerWidth,
+  height: window.innerHeight,
   initialViewState: {
     longitude: -73.9760,
     latitude:   40.7128,
@@ -301,12 +308,12 @@ const deckgl = new DeckGL({
     if (!object) return null;
     const id = layer && layer.id;
     let html;
-    if (id === 'active') {
+    if (id === 'sensors') {
+      const depth = depthCache[object.id] || 0;
       html = `<b>${object.name}</b><br>${object.borough || '—'}<br>`
-           + `<span style="color:#7ab9f5">${object.depth.toFixed(1)} in depth</span>`;
-    } else if (id === 'quiet') {
-      html = `<b>${object.name}</b><br>${object.borough || '—'}<br>`
-           + `<span style="opacity:0.55">No active flood</span>`;
+           + (depth > 0
+               ? `<span style="color:#7ab9f5">${depth.toFixed(1)} in depth</span>`
+               : `<span style="opacity:0.55">No active flood</span>`);
     } else if (id === 'complaints') {
       html = `<b>311: ${object.descriptor}</b><br>${object.borough || '—'}`;
     } else {
@@ -316,9 +323,13 @@ const deckgl = new DeckGL({
   },
 });
 
-function buildLayers(t_ms) {
-  const { active, quiet, visible311 } = getLayerData(t_ms);
+// Frame counter used as updateTrigger — increments each render so
+// deck.gl re-evaluates accessors without treating t_ms (a float) as
+// the signal, which would also force buffer rebuilds on sub-ms changes.
+let frameId = 0;
 
+function buildLayers(t_ms) {
+  frameId++;
   return [
     // Basemap — CartoDB Positron raster tiles
     new TileLayer({
@@ -335,45 +346,46 @@ function buildLayers(t_ms) {
       },
     }),
 
-    // Quiet (idle) sensors — small, muted gray
+    // ALL sensors in one stable layer — sensors never leave, they just
+    // change size and colour. Eliminates the quiet↔active swap flicker.
     new ScatterplotLayer({
-      id: 'quiet',
-      data: quiet,
+      id: 'sensors',
+      data: SENSOR_LOCS,           // static reference, never replaced
       getPosition: d => [d.lon, d.lat],
-      getRadius: 280,
+      getRadius: d => {
+        const depth = depthCache[d.id];
+        return depth > 0 ? 196 + 900 * Math.min(depth / MAX_DEPTH, 1.0) : 196;
+      },
+      getFillColor: d => {
+        const depth = depthCache[d.id];
+        if (depth > 0) return [...depthToRGB(depth), 230];
+        return [140, 140, 140, 220];
+      },
       radiusUnits: 'meters',
-      radiusMinPixels: 3,
-      radiusMaxPixels: 12,
-      getFillColor: [170, 170, 170, 190],
+      radiusMinPixels: 2,
+      updateTriggers: { getRadius: frameId, getFillColor: frameId },
       pickable: true,
     }),
 
-    // Active (flooding) sensors — blue scale, sized by depth
-    new ScatterplotLayer({
-      id: 'active',
-      data: active,
-      getPosition: d => [d.lon, d.lat],
-      getRadius: d => 280 + 900 * Math.min(d.depth / MAX_DEPTH, 1.0),
-      radiusUnits: 'meters',
-      radiusMinPixels: 5,
-      radiusMaxPixels: 36,
-      getFillColor: d => [...depthToRGB(d.depth), 230],
-      pickable: true,
-      updateTriggers: { getRadius: t_ms, getFillColor: t_ms },
-    }),
-
-    // 311 complaints — red, fade over 1.5 h
+    // 311 complaints — static data array, accessors encode visibility.
+    // Radius 0 = invisible; avoids re-creating the array each frame.
     new ScatterplotLayer({
       id: 'complaints',
-      data: visible311,
+      data: COMPLAINTS,            // static reference, never replaced
       getPosition: d => [d.lon, d.lat],
-      getRadius: 200,
+      getRadius: d => {
+        const age = t_ms - d.created_ms;
+        return (age >= 0 && age <= FADE_MS) ? 200 : 0;
+      },
+      getFillColor: d => {
+        const age = t_ms - d.created_ms;
+        if (age < 0 || age > FADE_MS) return [0, 0, 0, 0];
+        return [231, 76, 60, Math.round(255 * (1 - age / FADE_MS))];
+      },
       radiusUnits: 'meters',
-      radiusMinPixels: 3,
-      radiusMaxPixels: 9,
-      getFillColor: d => [231, 76, 60, Math.round(255 * d.opacity)],
+      radiusMinPixels: 0,
+      updateTriggers: { getRadius: frameId, getFillColor: frameId },
       pickable: true,
-      updateTriggers: { getFillColor: t_ms },
     }),
   ];
 }
@@ -399,6 +411,7 @@ function formatET(t_ms) {
 }
 
 function render(t_ms) {
+  updateDepthCache(t_ms);
   deckgl.setProps({ layers: buildLayers(t_ms) });
   document.getElementById('current-time').textContent = formatET(t_ms);
   document.getElementById('scrubber').value =
@@ -437,6 +450,11 @@ document.getElementById('play-btn').addEventListener('click', () => {
 document.getElementById('scrubber').addEventListener('input', e => {
   currentT = STORM_START_MS + (e.target.value / 10000) * STORM_MS;
   render(currentT);
+});
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  deckgl.setProps({ width: window.innerWidth, height: window.innerHeight });
 });
 
 // Initial render

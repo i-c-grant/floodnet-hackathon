@@ -132,7 +132,7 @@ def main():
         })
 
     storm_start_ms = int(storm_start.timestamp() * 1000)
-    storm_end_ms   = int(storm_end.timestamp() * 1000)
+    storm_end_ms   = int((storm_end - pd.Timedelta(hours=2)).timestamp() * 1000)
     max_depth = max(
         (max(d for _, d in series) for series in clean_series.values() if series),
         default=1.0,
