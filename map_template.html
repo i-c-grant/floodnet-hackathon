@@ -182,9 +182,18 @@
     <div class="lg-dot" style="background:#e74c3c;"></div>
     <span>311 complaint</span>
   </div>
-  <div class="lg-row" id="mrms-legend-row" style="display:none;">
-    <div class="lg-dot" style="background:rgba(65,182,230,0.35); border:2px solid rgba(30,140,210,0.8); border-radius:3px;"></div>
-    <span>VIL ≥ 4 kg/m²</span>
+  <div id="mrms-legend-row" style="display:none; margin-top:10px;">
+    <div class="lg-title" style="margin-bottom:8px;">Radar VIL (kg/m²)</div>
+    <div style="display:flex; justify-content:space-between; font-size:18px; color:#999; margin-bottom:5px;">
+      <span>4</span><span>8</span><span>12</span><span>15+</span>
+    </div>
+    <div style="height:13px; border-radius:4px; background:linear-gradient(to right,
+      rgba(255,255,178,0.25),
+      rgba(254,204,92,0.55),
+      rgba(253,141,60,0.72),
+      rgba(240,59,32,0.82),
+      rgba(189,0,38,0.87));
+    "></div>
   </div>
 </div>
 
@@ -213,8 +222,8 @@ const COMPLAINTS     = __COMPLAINTS__;
 const STORM_START_MS = __STORM_START_MS__;
 const STORM_END_MS   = __STORM_END_MS__;
 const MAX_DEPTH      = __MAX_DEPTH__;
-// MRMS VIL contours: [{t_ms, geojson}, ...] sorted by t_ms.
-// geojson is a GeoJSON geometry (Polygon/MultiPolygon) or null when below threshold.
+// MRMS VIL raster frames: [{t_ms, png_b64}, ...] sorted by t_ms.
+// png_b64 is null for frames below VIL threshold (no visible content).
 // Empty array if query_mrms.py has not been run.
 const MRMS_FRAMES    = __MRMS_FRAMES__;
 
@@ -225,6 +234,8 @@ const STORM_MS    = STORM_END_MS - STORM_START_MS;
 const BASE_SPEED  = 10 * 60 * 1000;        // 10 storm-min / real-sec
 
 // ── MRMS VIL helpers ───────────────────────────────────────────────
+// Precompute data URLs once; null entries stay null (no layer rendered).
+const mrmsUrls  = MRMS_FRAMES.map(f => f.png_b64 ? 'data:image/png;base64,' + f.png_b64 : null);
 const mrmsTimes = MRMS_FRAMES.map(f => f.t_ms);
 
 // Binary search: index of the last MRMS frame at or before t_ms (-1 if none)
@@ -303,7 +314,7 @@ const TOOLTIP_STYLE = {
 
 // ── deck.gl setup ─────────────────────────────────────────────────
 // Use deck.Deck (vanilla JS class), not deck.DeckGL (React wrapper).
-const { Deck, TileLayer, ScatterplotLayer, BitmapLayer, GeoJsonLayer } = deck;
+const { Deck, TileLayer, ScatterplotLayer, BitmapLayer } = deck;
 
 // Create and size the canvas manually so it fills the container.
 const canvas = document.createElement('canvas');
@@ -368,22 +379,17 @@ function buildLayers(t_ms) {
       },
     }),
 
-    // MRMS VIL ≥ 4 kg/m² contour — GeoJsonLayer, nearest-neighbour lookup.
-    // Skipped when no MRMS data or current frame is below threshold (geojson null).
+    // MRMS VIL raster — BitmapLayer, nearest-neighbour frame lookup.
+    // Opacity is baked into the PNG alpha channel (transparent below 4 kg/m²,
+    // ramping to 85 % at 15 kg/m²).  Skipped when no data or frame is null.
     ...((() => {
       const idx = mrmsIdxAt(t_ms);
-      if (idx < 0) return [];
-      const geojson = MRMS_FRAMES[idx].geojson;
-      if (!geojson) return [];
-      return [new GeoJsonLayer({
+      if (idx < 0 || !mrmsUrls[idx]) return [];
+      return [new BitmapLayer({
         id: 'mrms',
-        data: { type: 'Feature', geometry: geojson, properties: {} },
-        filled: true,
-        stroked: true,
-        getFillColor: [65, 182, 230, 60],
-        getLineColor: [30, 140, 210, 200],
-        getLineWidth: 1,
-        lineWidthMinPixels: 1,
+        image: mrmsUrls[idx],
+        bounds: MRMS_BOUNDS,
+        opacity: 1.0,
       })];
     })()),
 

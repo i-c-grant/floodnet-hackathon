@@ -15,91 +15,48 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+import base64
+import io
+
 import duckdb
+import matplotlib.image as mimg
 import numpy as np
 import pandas as pd
-from shapely import wkt as shapely_wkt
-from shapely.geometry import LinearRing, mapping, shape
 
-_INTERP_PTS = 64   # vertices per resampled polygon ring for interpolation
+# ── VIL → RGBA colormap ────────────────────────────────────────────────────────
+# Brewer YlOrRd ramp; matches the CSS gradient in the map legend.
+VIL_SHOW_MIN = 4.0    # kg/m²; below this: fully transparent
+VIL_SHOW_MAX = 15.0   # kg/m²; above this: max opacity
+
+_RAMP_POS = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+_RAMP_RGB  = np.array([
+    [255, 255, 178],   # light yellow
+    [254, 204,  92],   # yellow-orange
+    [253, 141,  60],   # orange
+    [240,  59,  32],   # red-orange
+    [189,   0,  38],   # dark red
+], dtype=np.float32)
 
 
-def _dominant(geojson):
+def _vil_to_png_b64(arr: np.ndarray) -> str:
+    """Convert a 2D VIL float32 array to a base64-encoded RGBA PNG.
+
+    Pixels below VIL_SHOW_MIN are fully transparent; pixels at VIL_SHOW_MAX
+    reach 85 % opacity.  RGB follows the Brewer YlOrRd ramp.
     """
-    Normalise a GeoJSON Polygon or MultiPolygon to a single Polygon by returning
-    the largest sub-polygon by area.  Returns None if geojson is None.
-    """
-    if geojson is None:
-        return None
-    if geojson["type"] == "Polygon":
-        return geojson
-    # MultiPolygon — pick the largest component
-    geom = shape(geojson)
-    largest = max(geom.geoms, key=lambda g: g.area)
-    return mapping(largest)
+    norm = np.clip((arr - VIL_SHOW_MIN) / (VIL_SHOW_MAX - VIL_SHOW_MIN), 0.0, 1.0)
+    flat = norm.ravel()
 
+    r = np.interp(flat, _RAMP_POS, _RAMP_RGB[:, 0]).reshape(arr.shape)
+    g = np.interp(flat, _RAMP_POS, _RAMP_RGB[:, 1]).reshape(arr.shape)
+    b = np.interp(flat, _RAMP_POS, _RAMP_RGB[:, 2]).reshape(arr.shape)
+    a = np.where(arr < VIL_SHOW_MIN, 0.0, norm * 0.85) * 255
 
-def _resample_ring(ring_coords):
-    """Resample a GeoJSON ring (list of [lon,lat]) to _INTERP_PTS evenly-spaced points."""
-    ring = LinearRing(ring_coords)
-    return np.array([
-        [ring.interpolate(i / _INTERP_PTS, normalized=True).x,
-         ring.interpolate(i / _INTERP_PTS, normalized=True).y]
-        for i in range(_INTERP_PTS)
-    ])
+    rgba = np.stack([r, g, b, a], axis=-1).astype(np.uint8)
 
-
-def _align_rotation(a, b):
-    """Return rotation index r that minimises sum-of-squared distances between a and roll(b, -r)."""
-    costs = np.array([np.sum((a - np.roll(b, -r, axis=0)) ** 2) for r in range(_INTERP_PTS)])
-    return int(np.argmin(costs))
-
-
-def _interpolate_frames(contour_rows, interval_ms=60_000):
-    """
-    Expand MRMS contour rows to interval_ms resolution by linearly interpolating
-    polygon vertices between adjacent frames.
-
-    Each frame is normalised to its dominant (largest-area) polygon before
-    interpolation, eliminating jumps caused by MultiPolygon → Polygon transitions.
-    None frames (below threshold) pass through unchanged; interpolation is skipped
-    across any None boundary.
-    """
-    base = []
-    for t, geom_wkt in contour_rows:
-        t_ms = int(pd.Timestamp(t).timestamp() * 1000)
-        raw = mapping(shapely_wkt.loads(geom_wkt)) if geom_wkt else None
-        base.append({"t_ms": t_ms, "geojson": _dominant(raw)})
-
-    result = []
-    for i, f0 in enumerate(base):
-        result.append(f0)
-        if i + 1 >= len(base):
-            break
-        f1 = base[i + 1]
-
-        g0, g1 = f0["geojson"], f1["geojson"]
-        if not (g0 and g1):
-            continue
-
-        a = _resample_ring(g0["coordinates"][0])
-        b = _resample_ring(g1["coordinates"][0])
-        b_aligned = np.roll(b, -_align_rotation(a, b), axis=0)
-
-        t0, t1 = f0["t_ms"], f1["t_ms"]
-        n_steps = max(1, round((t1 - t0) / interval_ms))
-
-        for step in range(1, n_steps):
-            alpha = step / n_steps
-            coords = (a + alpha * (b_aligned - a)).tolist()
-            coords.append(coords[0])  # close the ring
-            result.append({
-                "t_ms": int(t0 + alpha * (t1 - t0)),
-                "geojson": {"type": "Polygon", "coordinates": [coords]},
-            })
-
-    result.sort(key=lambda f: f["t_ms"])
-    return result
+    buf = io.BytesIO()
+    mimg.imsave(buf, rgba, format="png")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
 
 DB_PATH       = Path("output/floodnet.duckdb")
 TEMPLATE_PATH = Path("map_template.html")
@@ -150,19 +107,24 @@ def main():
     """, [STORM_ID]).df()
 
     # ------------------------------------------------------------------
-    # MRMS contours — {t_ms, geojson} per frame; geojson is None when
-    # VIL was below threshold (rendered as no layer in the map).
+    # MRMS VIL raster frames — {t_ms, png_b64} per frame.
+    # png_b64 is None for frames where max VIL < VIL_SHOW_MIN (no visible content).
     # ------------------------------------------------------------------
-    contour_rows = con.execute("""
-        SELECT timestamp_utc, geom_wkt
-        FROM mrms_contours
+    vil_rows = con.execute("""
+        SELECT timestamp_utc, n_lat, n_lon, vil_flat
+        FROM mrms_vil
         WHERE storm_id = ?
         ORDER BY timestamp_utc
     """, [STORM_ID]).fetchall()
 
     con.close()
 
-    mrms_frames = _interpolate_frames(contour_rows)
+    mrms_frames = []
+    for t, n_lat, n_lon, vil_flat in vil_rows:
+        t_ms = int(pd.Timestamp(t).timestamp() * 1000)
+        arr  = np.array(vil_flat, dtype=np.float32).reshape(n_lat, n_lon)
+        png_b64 = _vil_to_png_b64(arr) if float(arr.max()) >= VIL_SHOW_MIN else None
+        mrms_frames.append({"t_ms": t_ms, "png_b64": png_b64})
 
     # ------------------------------------------------------------------
     # Build per-sensor flood time series
