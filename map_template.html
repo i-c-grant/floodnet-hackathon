@@ -128,33 +128,33 @@
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border: 1px solid rgba(0, 0, 0, 0.07);
-      border-radius: 16px;
-      padding: 24px 28px;
-      font-size: 24px;
+      border-radius: 11px;
+      padding: 17px 20px;
+      font-size: 17px;
       color: #222;
       z-index: 100;
       line-height: 1;
     }
 
     .lg-title {
-      font-size: 20px;
+      font-size: 14px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: #999;
-      margin-bottom: 16px;
+      margin-bottom: 11px;
     }
 
     .lg-row {
       display: flex;
       align-items: center;
-      gap: 14px;
-      margin-bottom: 10px;
+      gap: 10px;
+      margin-bottom: 7px;
     }
     .lg-row:last-child { margin-bottom: 0; }
 
     .lg-dot {
-      width: 20px; height: 20px;
+      width: 14px; height: 14px;
       border-radius: 50%;
       flex-shrink: 0;
     }
@@ -182,17 +182,17 @@
     <div class="lg-dot" style="background:#e74c3c;"></div>
     <span>311 complaint</span>
   </div>
-  <div id="mrms-legend-row" style="display:none; margin-top:10px;">
-    <div class="lg-title" style="margin-bottom:8px;">Radar VIL (kg/m²)</div>
-    <div style="display:flex; justify-content:space-between; font-size:18px; color:#999; margin-bottom:5px;">
+  <div id="mrms-legend-row" style="display:none; margin-top:7px;">
+    <div class="lg-title" style="margin-bottom:6px;">Radar VIL (kg/m²)</div>
+    <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:4px;">
       <span>4</span><span>8</span><span>12</span><span>15+</span>
     </div>
-    <div style="height:13px; border-radius:4px; background:linear-gradient(to right,
-      rgba(255,255,178,0.25),
-      rgba(254,204,92,0.55),
-      rgba(253,141,60,0.72),
-      rgba(240,59,32,0.82),
-      rgba(189,0,38,0.87));
+    <div style="height:9px; border-radius:3px; background:linear-gradient(to right,
+      rgba(255,255,255,0.25),
+      rgba(198,219,239,0.55),
+      rgba(107,174,214,0.72),
+      rgba(33,113,181,0.82),
+      rgba(8,48,107,0.87));
     "></div>
   </div>
 </div>
@@ -207,8 +207,8 @@
     <input type="range" id="scrubber" min="0" max="10000" value="0" aria-label="Timeline">
     <select id="speed-select" aria-label="Speed">
       <option value="1">1×</option>
-      <option value="2">2×</option>
-      <option value="4" selected>4×</option>
+      <option value="2" selected>2×</option>
+      <option value="4">4×</option>
       <option value="8">8×</option>
     </select>
   </div>
@@ -228,7 +228,7 @@ const MAX_DEPTH      = __MAX_DEPTH__;
 const MRMS_FRAMES    = __MRMS_FRAMES__;
 
 // ── Constants ──────────────────────────────────────────────────────
-const FADE_MS     = 1.5 * 3600 * 1000;     // 311 complaint fade window
+const FADE_MS     = 0.375 * 3600 * 1000;   // 311 complaint fade window
 const STORM_MS    = STORM_END_MS - STORM_START_MS;
 // Base speed: storm minutes per real second at 1×
 const BASE_SPEED  = 10 * 60 * 1000;        // 10 storm-min / real-sec
@@ -413,6 +413,9 @@ function buildLayers(t_ms) {
       },
       radiusUnits: 'meters',
       radiusMinPixels: 2,
+      stroked: true,
+      getLineColor: [255, 255, 255, 220],
+      lineWidthMinPixels: 1.5,
       updateTriggers: { getRadius: frameId, getFillColor: frameId },
       pickable: true,
     }),

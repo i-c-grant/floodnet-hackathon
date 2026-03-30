@@ -24,17 +24,17 @@ import numpy as np
 import pandas as pd
 
 # ── VIL → RGBA colormap ────────────────────────────────────────────────────────
-# Brewer YlOrRd ramp; matches the CSS gradient in the map legend.
+# Brewer Blues ramp; matches the CSS gradient in the map legend.
 VIL_SHOW_MIN = 4.0    # kg/m²; below this: fully transparent
 VIL_SHOW_MAX = 15.0   # kg/m²; above this: max opacity
 
 _RAMP_POS = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
 _RAMP_RGB  = np.array([
-    [255, 255, 178],   # light yellow
-    [254, 204,  92],   # yellow-orange
-    [253, 141,  60],   # orange
-    [240,  59,  32],   # red-orange
-    [189,   0,  38],   # dark red
+    [255, 255, 255],   # white
+    [198, 219, 239],   # light blue
+    [107, 174, 214],   # medium blue
+    [ 33, 113, 181],   # blue
+    [  8,  48, 107],   # deep navy
 ], dtype=np.float32)
 
 
