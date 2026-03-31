@@ -289,7 +289,7 @@
     <span>Sensor — flooding</span>
   </div>
   <div class="lg-row">
-    <div class="lg-dot" style="background:#e74c3c;"></div>
+    <div style="width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:12px solid #e74c3c; flex-shrink:0; margin-bottom:1px;"></div>
     <span>311 complaint</span>
   </div>
   <div id="mrms-legend-row" style="display:none; margin-top:7px;">
@@ -447,7 +447,15 @@ const TOOLTIP_STYLE = {
 
 // ── deck.gl setup ─────────────────────────────────────────────────
 // Use deck.Deck (vanilla JS class), not deck.DeckGL (React wrapper).
-const { Deck, TileLayer, ScatterplotLayer, BitmapLayer } = deck;
+const { Deck, TileLayer, ScatterplotLayer, BitmapLayer, IconLayer } = deck;
+
+// White upward triangle SVG, mask:true lets getColor tint + fade it
+const COMPLAINT_ICON = {
+  url: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpolygon points='16,5 31,31 1,31' fill='white'/%3E%3C/svg%3E",
+  width: 32, height: 32,
+  anchorX: 16, anchorY: 22,  // anchor near visual centre of triangle
+  mask: true,
+};
 
 // Create and size the canvas manually so it fills the container.
 const canvas = document.createElement('canvas');
@@ -550,24 +558,20 @@ function buildLayers(t_ms) {
       pickable: true,
     }),
 
-    // 311 complaints — static data array, accessors encode visibility.
-    // Radius 0 = invisible; avoids re-creating the array each frame.
-    new ScatterplotLayer({
+    // 311 complaints — triangle icons, alpha encodes visibility and fade.
+    new IconLayer({
       id: 'complaints',
       data: COMPLAINTS,            // static reference, never replaced
+      getIcon: () => COMPLAINT_ICON,
       getPosition: d => [d.lon, d.lat],
-      getRadius: d => {
-        const age = t_ms - d.created_ms;
-        return (age >= 0 && age <= FADE_MS) ? 200 : 0;
-      },
-      getFillColor: d => {
+      getSize: 10,
+      sizeUnits: 'pixels',
+      getColor: d => {
         const age = t_ms - d.created_ms;
         if (age < 0 || age > FADE_MS) return [0, 0, 0, 0];
         return [231, 76, 60, Math.round(255 * (1 - age / FADE_MS))];
       },
-      radiusUnits: 'meters',
-      radiusMinPixels: 0,
-      updateTriggers: { getRadius: frameId, getFillColor: frameId },
+      updateTriggers: { getColor: frameId },
       pickable: true,
     }),
   ];
