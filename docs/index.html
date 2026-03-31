@@ -265,6 +265,14 @@
     }
     #sources-list a:hover { text-decoration: underline; }
 
+    /* ── Legend checkboxes ───────────────────────────────────────── */
+    .lg-row input[type=checkbox] {
+      margin-left: auto;
+      cursor: pointer;
+      accent-color: #444;
+      flex-shrink: 0;
+    }
+
     /* ── Tooltip ─────────────────────────────────────────────────── */
     /* deck.gl injects tooltip via getTooltip — we style via the
        returned style object, not CSS class */
@@ -283,6 +291,7 @@
   <div class="lg-row">
     <div class="lg-dot" style="background:#aaaaaa; opacity:0.75;"></div>
     <span>Sensor — idle</span>
+    <input type="checkbox" id="toggle-sensors" checked>
   </div>
   <div class="lg-row">
     <div class="lg-dot" style="background:#08306b;"></div>
@@ -291,9 +300,10 @@
   <div class="lg-row">
     <div style="width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:12px solid #e74c3c; flex-shrink:0; margin-bottom:1px;"></div>
     <span>311 complaint</span>
+    <input type="checkbox" id="toggle-complaints" checked>
   </div>
   <div id="mrms-legend-row" style="display:none; margin-top:7px;">
-    <div class="lg-title" style="margin-bottom:6px;">Radar VIL (kg/m²)</div>
+    <div class="lg-title" style="margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">Radar VIL (kg/m²)<input type="checkbox" id="toggle-mrms" checked></div>
     <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:4px;">
       <span>4</span><span>8</span><span>12</span><span>15+</span>
     </div>
@@ -520,10 +530,11 @@ function buildLayers(t_ms) {
       },
     }),
 
-    // MRMS VIL raster — BitmapLayer, nearest-neighbour frame lookup.
+    // MRMS VIL raster — BitmapLayer, nearest-neighbour frame lookup. Gated by toggle.
     // Opacity is baked into the PNG alpha channel (transparent below 4 kg/m²,
     // ramping to 85 % at 15 kg/m²).  Skipped when no data or frame is null.
     ...((() => {
+      if (!showMrms) return [];
       const idx = mrmsIdxAt(t_ms);
       if (idx < 0 || !mrmsUrls[idx]) return [];
       return [new BitmapLayer({
@@ -536,7 +547,7 @@ function buildLayers(t_ms) {
 
     // ALL sensors in one stable layer — sensors never leave, they just
     // change size and colour. Eliminates the quiet↔active swap flicker.
-    new ScatterplotLayer({
+    ...(showSensors ? [new ScatterplotLayer({
       id: 'sensors',
       data: SENSOR_LOCS,           // static reference, never replaced
       getPosition: d => [d.lon, d.lat],
@@ -556,15 +567,15 @@ function buildLayers(t_ms) {
       lineWidthMinPixels: 1.5,
       updateTriggers: { getRadius: frameId, getFillColor: frameId },
       pickable: true,
-    }),
+    })] : []),
 
     // 311 complaints — triangle icons, alpha encodes visibility and fade.
-    new IconLayer({
+    ...(showComplaints ? [new IconLayer({
       id: 'complaints',
       data: COMPLAINTS,            // static reference, never replaced
       getIcon: () => COMPLAINT_ICON,
       getPosition: d => [d.lon, d.lat],
-      getSize: 10,
+      getSize: 12,
       sizeUnits: 'pixels',
       getColor: d => {
         const age = t_ms - d.created_ms;
@@ -573,9 +584,21 @@ function buildLayers(t_ms) {
       },
       updateTriggers: { getColor: frameId },
       pickable: true,
-    }),
+    })] : []),
   ];
 }
+
+// ── Layer toggles ──────────────────────────────────────────────────
+let showSensors    = true;
+let showComplaints = true;
+let showMrms       = true;
+
+document.getElementById('toggle-sensors').addEventListener('change', e => {
+  showSensors = e.target.checked; render(currentT);
+});
+document.getElementById('toggle-complaints').addEventListener('change', e => {
+  showComplaints = e.target.checked; render(currentT);
+});
 
 // ── Animation state ────────────────────────────────────────────────
 let currentT  = STORM_START_MS;
@@ -647,6 +670,9 @@ window.addEventListener('resize', () => {
 // Show MRMS legend row only when data is present
 if (MRMS_FRAMES.length > 0) {
   document.getElementById('mrms-legend-row').style.display = '';
+  document.getElementById('toggle-mrms').addEventListener('change', e => {
+    showMrms = e.target.checked; render(currentT);
+  });
 }
 
 // Initial render
