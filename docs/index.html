@@ -115,18 +115,14 @@
 
     /* ── Legend ─────────────────────────────────────────────────── */
     #legend {
-      position: fixed;
-      top: 20px;
-      right: 20px;
       background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border: 2.5px solid rgba(0, 0, 0, 0.40);
       border-radius: 11px;
-      padding: 17px 20px;
-      font-size: 17px;
+      padding: 14px;
+      font-size: 14px;
       color: #222;
-      z-index: 100;
       line-height: 1;
     }
 
@@ -153,30 +149,36 @@
       flex-shrink: 0;
     }
 
-    /* ── Title ───────────────────────────────────────────────────── */
-    #title {
+    /* ── Left panel ──────────────────────────────────────────────── */
+    #panel {
       position: fixed;
       top: 20px;
       left: 20px;
+      width: min(260px, calc(100vw - 40px));
+      max-height: calc(100vh - 40px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    /* ── Title ───────────────────────────────────────────────────── */
+    #title {
       background: rgba(255, 255, 255, 0.78);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border: 2.5px solid rgba(0, 0, 0, 0.40);
       border-radius: 11px;
-      padding: 9px 18px;
+      padding: 9px 14px;
       font-size: 17px;
       font-weight: 600;
       color: #666;
       letter-spacing: 0.01em;
-      white-space: nowrap;
-      z-index: 100;
     }
 
     /* ── Methodology ─────────────────────────────────────────────── */
     #methodology {
-      position: fixed;
-      bottom: 28px;
-      left: 20px;
       background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
@@ -185,8 +187,6 @@
       padding: 8px 14px;
       font-size: 12px;
       color: #222;
-      z-index: 100;
-      max-width: 320px;
       overflow: hidden;
     }
 
@@ -209,7 +209,7 @@
     }
 
     #methodology:hover #methodology-body {
-      max-height: 400px;
+      max-height: 600px;
       opacity: 1;
       margin-top: 6px;
     }
@@ -223,9 +223,6 @@
 
     /* ── Sources ─────────────────────────────────────────────────── */
     #sources {
-      position: fixed;
-      bottom: 28px;
-      right: 20px;
       background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
@@ -234,8 +231,6 @@
       padding: 8px 14px;
       font-size: 12px;
       color: #222;
-      z-index: 100;
-      max-width: 260px;
       overflow: hidden;
     }
 
@@ -278,6 +273,8 @@
 <body>
 
 <div id="container"></div>
+
+<div id="panel">
 
 <div id="title">10/30/2025 NYC Rainstorm</div>
 
@@ -328,6 +325,8 @@
     <a href="https://registry.opendata.aws/noaa-mrms-pds/" target="_blank">NOAA MRMS (AWS Open Data) — radar VIL</a>
   </div>
 </div>
+
+</div> <!-- #panel -->
 
 <div id="timeline">
   <div id="tl-header">
