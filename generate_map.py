@@ -42,7 +42,7 @@ def _vil_to_png_b64(arr: np.ndarray) -> str:
     """Convert a 2D VIL float32 array to a base64-encoded RGBA PNG.
 
     Pixels below VIL_SHOW_MIN are fully transparent; pixels at VIL_SHOW_MAX
-    reach 85 % opacity.  RGB follows the Brewer YlOrRd ramp.
+    reach 85 % opacity.  RGB follows the Brewer Blues ramp.
     """
     norm = np.clip((arr - VIL_SHOW_MIN) / (VIL_SHOW_MAX - VIL_SHOW_MIN), 0.0, 1.0)
     flat = norm.ravel()

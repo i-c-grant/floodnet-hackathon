@@ -1,4 +1,4 @@
-.PHONY: build run map mrms mrms-force floods nyc311 pipeline dashboard
+.PHONY: build run map mrms mrms-force floods nyc311 pipeline
 
 IMAGE := floodnet-hackathon
 RUN   := docker run --rm --env-file .env -v $(PWD)/output:/app/output $(IMAGE)
@@ -33,9 +33,3 @@ nyc311:
 # Full pipeline script
 pipeline:
 	$(RUN) pipeline.py
-
-# Streamlit dashboard
-dashboard:
-	docker run --rm --env-file .env -v $(PWD)/output:/app/output -p 8501:8501 \
-		--entrypoint streamlit $(IMAGE) \
-		run dashboard.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true

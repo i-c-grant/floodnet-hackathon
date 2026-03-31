@@ -22,11 +22,8 @@ RUN uv pip install --no-cache \
     pandas \
     requests \
     python-dotenv \
-    branca \
     duckdb \
     tqdm \
-    streamlit \
-    plotly \
     xarray \
     cfgrib
 
