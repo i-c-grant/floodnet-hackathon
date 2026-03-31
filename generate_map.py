@@ -179,13 +179,27 @@ def main():
         .dt.tz_convert("UTC")
         .dt.tz_localize(None)
     )
+    _DESCRIPTOR_MAP = {
+        "Street Flooding (SJ)":                           "Street flooding",
+        "Catch Basin Clogged/Flooding (Use Comments) (SC)": "Clogged catch basin",
+        "Sewer Backup (Use Comments) (SA)":               "Sewer backup",
+        "Culvert Blocked/Needs Cleaning (SE)":            "Blocked culvert",
+        "Manhole Overflow (Use Comments) (SA1)":          "Manhole overflow",
+        "Catch Basin Sunken/Damaged/Raised (SC1)":        "Damaged catch basin",
+        "Catch Basin Grating Missing (SA4)":              "Missing catch basin grating",
+        "Highway Flooding (SH)":                          "Highway flooding",
+        "Sewer or Drain":                                 "Sewer / drain issue",
+    }
     complaints_list = []
     for _, row in complaints.dropna(subset=["created_utc"]).iterrows():
+        raw = str(row["descriptor"] or "")
+        label = _DESCRIPTOR_MAP.get(raw)
+        if label is None:
+            continue
         complaints_list.append({
             "lat":        float(row["latitude"]),
             "lon":        float(row["longitude"]),
-            "descriptor": str(row["descriptor"] or ""),
-            "borough":    str(row["borough"] or ""),
+            "descriptor": label,
             "created_ms": int(row["created_utc"].timestamp() * 1000),
         })
 

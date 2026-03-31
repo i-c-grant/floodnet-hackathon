@@ -243,7 +243,7 @@
 <div id="sources">
   <div id="sources-label">Sources</div>
   <div id="sources-list">
-    <a href="https://floodnet.nyc" target="_blank">FloodNet NYC — flood sensors</a>
+    <a href="https://data.cityofnewyork.us/Environment/FloodNet-Flood-Sensor-Readings/aq7i-eu5q" target="_blank">NYC Open Data / FloodNet NYC — flood sensors</a>
     <a href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9" target="_blank">NYC Open Data — 311 complaints</a>
     <a href="https://mrms.nssl.noaa.gov" target="_blank">NOAA MRMS — radar VIL</a>
   </div>
@@ -397,12 +397,12 @@ const deckgl = new Deck({
     let html;
     if (id === 'sensors') {
       const depth = depthCache[object.id] || 0;
-      html = `<b>${object.name}</b><br>${object.borough || '—'}<br>`
+      html = `<b>${object.name}</b><br>`
            + (depth > 0
                ? `<span style="color:#7ab9f5">${depth.toFixed(1)} in depth</span>`
                : `<span style="opacity:0.55">No active flood</span>`);
     } else if (id === 'complaints') {
-      html = `<b>311: ${object.descriptor}</b><br>${object.borough || '—'}`;
+      html = `<b>${object.descriptor}</b>`;
     } else {
       return null;
     }
