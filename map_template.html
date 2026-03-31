@@ -159,6 +159,55 @@
       flex-shrink: 0;
     }
 
+    /* ── Sources ─────────────────────────────────────────────────── */
+    #sources {
+      position: fixed;
+      bottom: 28px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      border-radius: 11px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #222;
+      z-index: 100;
+      max-width: 260px;
+      overflow: hidden;
+    }
+
+    #sources-label {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      color: #999;
+      cursor: default;
+    }
+
+    #sources-list {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
+      margin-top: 0;
+      line-height: 1.7;
+    }
+
+    #sources:hover #sources-list {
+      max-height: 200px;
+      opacity: 1;
+      margin-top: 6px;
+    }
+
+    #sources-list a {
+      display: block;
+      color: #444;
+      text-decoration: none;
+    }
+    #sources-list a:hover { text-decoration: underline; }
+
     /* ── Tooltip ─────────────────────────────────────────────────── */
     /* deck.gl injects tooltip via getTooltip — we style via the
        returned style object, not CSS class */
@@ -194,6 +243,15 @@
       rgba(33,113,181,0.82),
       rgba(8,48,107,0.87));
     "></div>
+  </div>
+</div>
+
+<div id="sources">
+  <div id="sources-label">Sources</div>
+  <div id="sources-list">
+    <a href="https://floodnet.nyc" target="_blank">FloodNet NYC — flood sensors</a>
+    <a href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9" target="_blank">NYC Open Data — 311 complaints</a>
+    <a href="https://mrms.nssl.noaa.gov" target="_blank">NOAA MRMS — radar VIL</a>
   </div>
 </div>
 
