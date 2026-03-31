@@ -172,6 +172,55 @@
       z-index: 100;
     }
 
+    /* ── Methodology ─────────────────────────────────────────────── */
+    #methodology {
+      position: fixed;
+      bottom: 28px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 2.5px solid rgba(0, 0, 0, 0.40);
+      border-radius: 11px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #222;
+      z-index: 100;
+      max-width: 320px;
+      overflow: hidden;
+    }
+
+    #methodology-label {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      color: #999;
+      cursor: default;
+    }
+
+    #methodology-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
+      margin-top: 0;
+      line-height: 1.6;
+    }
+
+    #methodology:hover #methodology-body {
+      max-height: 400px;
+      opacity: 1;
+      margin-top: 6px;
+    }
+
+    #methodology-body p {
+      margin-bottom: 6px;
+    }
+    #methodology-body p:last-child { margin-bottom: 0; }
+
+    #methodology-body b { color: #111; }
+
     /* ── Sources ─────────────────────────────────────────────────── */
     #sources {
       position: fixed;
@@ -261,6 +310,16 @@
   </div>
 </div>
 
+<div id="methodology">
+  <div id="methodology-label">Methodology</div>
+  <div id="methodology-body">
+    <p><b>Sensors</b> — FloodNet ultrasonic depth sensors measure street flooding in real time. Dot size and color show flood depth.</p>
+    <p><b>311 Complaints</b> — Flood-related 311 reports from NYC Open Data, filtered to 9 flooding- or sewer-related categories that increase in response to heavy rain events. Each complaint fades out 20 minutes after it was filed.</p>
+    <p><b>Radar</b> — NOAA MRMS Vertically Integrated Liquid (VIL) shows the intensity of the rain band overhead. VIL was chosen over base reflectivity because it isolates the intense core of the storm — a broader, less intense system surrounded it, which base reflectivity would not distinguish as clearly. Values below 4 kg/m² are hidden; the blue scale runs to 15+ kg/m².</p>
+    <p><b>Animation</b> — Covers 12:23 PM – 11:00 PM ET on October 30, 2025. Use the speed control to adjust playback rate.</p>
+  </div>
+</div>
+
 <div id="sources">
   <div id="sources-label">Sources</div>
   <div id="sources-list">
@@ -300,7 +359,7 @@ const MAX_DEPTH      = __MAX_DEPTH__;
 const MRMS_FRAMES    = __MRMS_FRAMES__;
 
 // ── Constants ──────────────────────────────────────────────────────
-const FADE_MS     = 0.375 * 3600 * 1000;   // 311 complaint fade window
+const FADE_MS     = 20 * 60 * 1000;        // 311 complaint fade window (20 min)
 const STORM_MS    = STORM_END_MS - STORM_START_MS;
 // Base speed: storm minutes per real second at 1×
 const BASE_SPEED  = 10 * 60 * 1000;        // 10 storm-min / real-sec
