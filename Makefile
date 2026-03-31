@@ -1,36 +1,41 @@
 .PHONY: build run map mrms mrms-force floods nyc311 pipeline dashboard
 
+IMAGE := floodnet-hackathon
+RUN   := docker run --rm --env-file .env -v $(PWD)/output:/app/output $(IMAGE)
+
 # Rebuild the image (required after editing map_template.html or any Python file)
 build:
-	docker compose build
+	docker build -t $(IMAGE) .
 
 # Full pipeline: ingest all data sources then generate the map
 run: build mrms nyc311 floods map
 
 # Generate the map (requires build first if template changed)
 map: build
-	docker compose run --rm genmap
+	$(RUN) generate_map.py
 
 # MRMS ingest (skip download if data already present)
 mrms:
-	docker compose run --rm mrms
+	$(RUN) query_mrms.py
 
 # MRMS ingest, force fresh S3 download
 mrms-force: build
-	docker compose run --rm mrms --force-download
+	$(RUN) query_mrms.py --force-download
 
 # FloodNet sensor ingest
 floods:
-	docker compose run --rm floods
+	$(RUN) query_floods.py
 
 # NYC 311 ingest
 nyc311:
-	docker compose run --rm nyc311
+	$(RUN) query_311.py
 
 # Full pipeline script
 pipeline:
-	docker compose run --rm pipeline
+	$(RUN) pipeline.py
 
 # Streamlit dashboard
 dashboard:
-	docker compose up dashboard
+	docker run --rm --env-file .env -v $(PWD)/output:/app/output -p 8501:8501 \
+		--entrypoint streamlit $(IMAGE) \
+		run dashboard.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true

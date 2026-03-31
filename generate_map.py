@@ -5,7 +5,7 @@ Usage (local):
     python generate_map.py
 
 Usage (Docker):
-    docker compose run --rm genmap
+    make map
 
 Output: output/storm_oct30.html
 """

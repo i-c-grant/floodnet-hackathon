@@ -16,9 +16,8 @@ Skips the S3 download if mrms_vil already has rows for the requested storm
 
 Output tables: mrms_vil, mrms_contours in output/floodnet.duckdb
 Docker:
-    docker compose run --rm mrms
-    docker compose run --rm mrms --storm-id 504 --interval-min 5
-    docker compose run --rm mrms --storm-id 504 --force-download
+    make mrms
+    make mrms-force
 """
 
 import argparse

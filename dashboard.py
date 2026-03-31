@@ -4,7 +4,7 @@ FloodNet Analytics Dashboard — Streamlit + Plotly + Folium backed by DuckDB.
 Run:
     streamlit run dashboard.py
     # or via Docker:
-    docker compose up dashboard
+    make dashboard
 """
 
 import ast
