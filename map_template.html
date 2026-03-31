@@ -24,13 +24,13 @@
       left: 50%;
       transform: translateX(-50%);
       width: min(700px, calc(100vw - 40px));
-      background: rgba(12, 12, 20, 0.86);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 2.5px solid rgba(0, 0, 0, 0.40);
       border-radius: 18px;
       padding: 14px 18px 12px;
-      color: #fff;
+      color: #111;
       z-index: 100;
       user-select: none;
     }
@@ -53,7 +53,7 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.09em;
-      color: rgba(255, 255, 255, 0.38);
+      color: rgba(0, 0, 0, 0.38);
     }
 
     #tl-controls {
@@ -65,9 +65,9 @@
     #play-btn {
       width: 34px; height: 34px;
       border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      border: 2.5px solid rgba(0, 0, 0, 0.40);
+      background: rgba(0, 0, 0, 0.06);
+      color: #111;
       font-size: 13px;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -75,7 +75,7 @@
       transition: background 0.12s;
       line-height: 1;
     }
-    #play-btn:hover { background: rgba(255, 255, 255, 0.22); }
+    #play-btn:hover { background: rgba(0, 0, 0, 0.12); }
 
     #scrubber {
       flex: 1;
@@ -83,7 +83,7 @@
       appearance: none;
       height: 3px;
       border-radius: 2px;
-      background: rgba(255, 255, 255, 0.16);
+      background: rgba(0, 0, 0, 0.16);
       outline: none;
       cursor: pointer;
     }
@@ -91,14 +91,14 @@
       -webkit-appearance: none;
       width: 13px; height: 13px;
       border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      background: #111;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
       cursor: pointer;
     }
     #scrubber::-moz-range-thumb {
       width: 13px; height: 13px;
       border-radius: 50%;
-      background: #fff;
+      background: #111;
       border: none;
       cursor: pointer;
     }
@@ -106,9 +106,9 @@
     #speed-select {
       appearance: none;
       -webkit-appearance: none;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      color: #fff;
+      background: rgba(0, 0, 0, 0.06);
+      border: 2.5px solid rgba(0, 0, 0, 0.40);
+      color: #111;
       border-radius: 7px;
       padding: 4px 8px;
       font-size: 11px;
@@ -117,7 +117,7 @@
       min-width: 40px;
       text-align: center;
     }
-    #speed-select option { background: #1a1a2e; color: #fff; }
+    #speed-select option { background: #fff; color: #111; }
 
     /* ── Legend ─────────────────────────────────────────────────── */
     #legend {
@@ -127,7 +127,7 @@
       background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(0, 0, 0, 0.07);
+      border: 2.5px solid rgba(0, 0, 0, 0.40);
       border-radius: 11px;
       padding: 17px 20px;
       font-size: 17px;
@@ -167,7 +167,7 @@
       background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(0, 0, 0, 0.07);
+      border: 2.5px solid rgba(0, 0, 0, 0.40);
       border-radius: 11px;
       padding: 8px 14px;
       font-size: 12px;
