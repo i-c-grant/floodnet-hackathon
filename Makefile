@@ -1,4 +1,4 @@
-.PHONY: build run map mrms mrms-force floods nyc311 pipeline
+.PHONY: build run map mrms mrms-force floods nyc311 pipeline publish
 
 IMAGE := floodnet-hackathon
 RUN   := docker run --rm --env-file .env -v $(PWD)/output:/app/output $(IMAGE)
@@ -29,6 +29,10 @@ floods:
 # NYC 311 ingest
 nyc311:
 	$(RUN) query_311.py
+
+# Copy generated map to docs/ for GitHub Pages
+publish: map
+	cp output/storm_oct30.html docs/index.html
 
 # Full pipeline script
 pipeline:
