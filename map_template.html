@@ -235,7 +235,7 @@ const BASE_SPEED  = 10 * 60 * 1000;        // 10 storm-min / real-sec
 
 // ── MRMS VIL helpers ───────────────────────────────────────────────
 // Geographic bounds of the clipped MRMS grid (must match NYC_BBOX in query_mrms.py)
-const MRMS_BOUNDS = [-74.35, 40.45, -73.60, 40.95]; // [west, south, east, north]
+const MRMS_BOUNDS = [-74.9, 39.9, -73.1, 41.4]; // [west, south, east, north]
 
 // Precompute data URLs once; null entries stay null (no layer rendered).
 const mrmsUrls  = MRMS_FRAMES.map(f => f.png_b64 ? 'data:image/png;base64,' + f.png_b64 : null);

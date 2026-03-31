@@ -42,7 +42,7 @@ MRMS_BASE = "https://noaa-mrms-pds.s3.amazonaws.com"
 PRODUCT   = "CONUS/LVL3_HighResVIL_00.50"
 
 # Clipping bbox — matches MRMS_BOUNDS in map_template.html
-NYC_BBOX = dict(west=-74.35, south=40.45, east=-73.60, north=40.95)
+NYC_BBOX = dict(west=-74.9, south=39.9, east=-73.1, north=41.4)
 
 _S3_NS    = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
 _FNAME_RE = re.compile(r"_(\d{8})-(\d{6})\.grib2\.gz$")

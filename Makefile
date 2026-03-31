@@ -16,7 +16,7 @@ mrms:
 	docker compose run --rm mrms
 
 # MRMS ingest, force fresh S3 download
-mrms-force:
+mrms-force: build
 	docker compose run --rm mrms --force-download
 
 # FloodNet sensor ingest
