@@ -203,7 +203,9 @@ def main():
             "created_ms": int(row["created_utc"].timestamp() * 1000),
         })
 
-    storm_start_ms = int(storm_start.timestamp() * 1000)
+    storm_start_ms = int(
+        pd.Timestamp("2025-10-30 13:30:00").tz_localize("America/New_York").timestamp() * 1000
+    )
     storm_end_ms   = int(
         pd.Timestamp("2025-10-30 23:00:00").tz_localize("America/New_York").timestamp() * 1000
     )

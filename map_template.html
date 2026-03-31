@@ -298,7 +298,7 @@
     <span>Sensor — flooding</span>
   </div>
   <div class="lg-row">
-    <div style="width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:12px solid #e74c3c; flex-shrink:0; margin-bottom:1px;"></div>
+    <div style="width:14px; height:14px; background:#fff000; border:1.5px solid #000; flex-shrink:0; align-self:center;"></div>
     <span>311 complaint</span>
     <input type="checkbox" id="toggle-complaints" checked>
   </div>
@@ -321,9 +321,9 @@
   <div id="methodology-label">Methodology</div>
   <div id="methodology-body">
     <p><b>Sensors</b> — FloodNet ultrasonic depth sensors measure street flooding in real time. Dot size and color show flood depth.</p>
-    <p><b>311 Complaints</b> — Flood-related 311 reports from NYC Open Data, filtered to 9 flooding- or sewer-related categories that increase in response to heavy rain events. Each complaint fades out 20 minutes after it was filed.</p>
+    <p><b>311 Complaints</b> — Flood-related 311 reports from NYC Open Data, filtered to 9 flooding- or sewer-related categories that increase in response to heavy rain events. Each complaint is visualized for 15 minutes after it is opened.</p>
     <p><b>Radar</b> — NOAA MRMS Vertically Integrated Liquid (VIL) shows the intensity of the rain band overhead. VIL was chosen over base reflectivity because it isolates the intense core of the storm — a broader, less intense system surrounded it, which base reflectivity would not distinguish as clearly. Values below 4 kg/m² are hidden; the blue scale runs to 15+ kg/m².</p>
-    <p><b>Animation</b> — Covers 12:23 PM – 11:00 PM ET on October 30, 2025. Use the speed control to adjust playback rate.</p>
+    <p><b>Animation</b> — Covers 1:30 PM – 11:00 PM ET on October 30, 2025. Use the speed control to adjust playback rate.</p>
   </div>
 </div>
 
@@ -368,7 +368,8 @@ const MAX_DEPTH      = __MAX_DEPTH__;
 const MRMS_FRAMES    = __MRMS_FRAMES__;
 
 // ── Constants ──────────────────────────────────────────────────────
-const FADE_MS     = 20 * 60 * 1000;        // 311 complaint fade window (20 min)
+const FADE_MS     = 15 * 60 * 1000;        // 311 complaint total window (15 min)
+const FADE_HOLD_MS = 12 * 60 * 1000;       // hold full opacity for first 12 min
 const STORM_MS    = STORM_END_MS - STORM_START_MS;
 // Base speed: storm minutes per real second at 1×
 const BASE_SPEED  = 10 * 60 * 1000;        // 10 storm-min / real-sec
@@ -459,13 +460,14 @@ const TOOLTIP_STYLE = {
 // Use deck.Deck (vanilla JS class), not deck.DeckGL (React wrapper).
 const { Deck, TileLayer, ScatterplotLayer, BitmapLayer, IconLayer } = deck;
 
-// White upward triangle SVG, mask:true lets getColor tint + fade it
+// Square SVG icons — mask:true lets getColor tint + fade each layer
 const COMPLAINT_ICON = {
-  url: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpolygon points='16,5 31,31 1,31' fill='white'/%3E%3C/svg%3E",
+  url: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect x='2' y='2' width='28' height='28' fill='white'/%3E%3C/svg%3E",
   width: 32, height: 32,
-  anchorX: 16, anchorY: 22,  // anchor near visual centre of triangle
+  anchorX: 16, anchorY: 16,
   mask: true,
 };
+const COMPLAINT_ICON_BG = { ...COMPLAINT_ICON }; // same shape, rendered as border behind
 
 // Create and size the canvas manually so it fills the container.
 const canvas = document.createElement('canvas');
@@ -564,27 +566,47 @@ function buildLayers(t_ms) {
       radiusMinPixels: 2,
       stroked: true,
       getLineColor: [255, 255, 255, 220],
-      lineWidthMinPixels: 1.5,
-      updateTriggers: { getRadius: frameId, getFillColor: frameId },
+      getLineWidth: d => depthCache[d.id] > 0 ? 3 : 1.5,
+      lineWidthUnits: 'pixels',
+      updateTriggers: { getRadius: frameId, getFillColor: frameId, getLineWidth: frameId },
       pickable: true,
     })] : []),
 
-    // 311 complaints — triangle icons, alpha encodes visibility and fade.
-    ...(showComplaints ? [new IconLayer({
-      id: 'complaints',
-      data: COMPLAINTS,            // static reference, never replaced
-      getIcon: () => COMPLAINT_ICON,
-      getPosition: d => [d.lon, d.lat],
-      getSize: 12,
-      sizeUnits: 'pixels',
-      getColor: d => {
-        const age = t_ms - d.created_ms;
-        if (age < 0 || age > FADE_MS) return [0, 0, 0, 0];
-        return [231, 76, 60, Math.round(255 * (1 - age / FADE_MS))];
-      },
-      updateTriggers: { getColor: frameId },
-      pickable: true,
-    })] : []),
+    // 311 complaints — white border diamond behind, red diamond on top.
+    ...(showComplaints ? [
+      new IconLayer({
+        id: 'complaints-bg',
+        data: COMPLAINTS,
+        getIcon: () => COMPLAINT_ICON_BG,
+        getPosition: d => [d.lon, d.lat],
+        getSize: 8,
+        sizeUnits: 'pixels',
+        getColor: d => {
+          const age = t_ms - d.created_ms;
+          if (age < 0 || age > FADE_MS) return [0, 0, 0, 0];
+          const a = age < FADE_HOLD_MS ? 255 : Math.round(255 * (1 - (age - FADE_HOLD_MS) / (FADE_MS - FADE_HOLD_MS)));
+          return [0, 0, 0, a];
+        },
+        updateTriggers: { getColor: frameId },
+        pickable: false,
+      }),
+      new IconLayer({
+        id: 'complaints',
+        data: COMPLAINTS,
+        getIcon: () => COMPLAINT_ICON,
+        getPosition: d => [d.lon, d.lat],
+        getSize: 6,
+        sizeUnits: 'pixels',
+        getColor: d => {
+          const age = t_ms - d.created_ms;
+          if (age < 0 || age > FADE_MS) return [0, 0, 0, 0];
+            const a = age < FADE_HOLD_MS ? 255 : Math.round(255 * (1 - (age - FADE_HOLD_MS) / (FADE_MS - FADE_HOLD_MS)));
+          return [255, 240, 0, a];
+        },
+        updateTriggers: { getColor: frameId },
+        pickable: true,
+      }),
+    ] : []),
   ];
 }
 
