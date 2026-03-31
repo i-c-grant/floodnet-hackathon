@@ -564,7 +564,7 @@ function buildLayers(t_ms) {
       data: COMPLAINTS,            // static reference, never replaced
       getIcon: () => COMPLAINT_ICON,
       getPosition: d => [d.lon, d.lat],
-      getSize: 10,
+      getSize: 12,
       sizeUnits: 'pixels',
       getColor: d => {
         const age = t_ms - d.created_ms;
