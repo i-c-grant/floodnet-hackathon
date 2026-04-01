@@ -1,5 +1,5 @@
 """
-Generate a standalone animated HTML map for the Oct 30 2025 storm (storm_id=504).
+Generate a standalone animated HTML map for the Oct 30 2025 storm.
 
 Usage (local):
     python generate_map.py
@@ -59,21 +59,26 @@ def _vil_to_png_b64(arr: np.ndarray) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 DB_PATH       = Path("output/floodnet.duckdb")
-TEMPLATE_PATH = Path("map_template.html")
+TEMPLATE_PATH = Path(__file__).parent / "map_template.html"
 OUT_PATH      = Path("output/storm_oct30.html")
-STORM_ID      = 504
+STORM_DATE    = "2025-10-30"   # select the storm whose window contains this date
 
 
 def main():
     con = duckdb.connect(str(DB_PATH), read_only=True)
 
-    # Storm metadata
-    row = con.execute(
-        "SELECT storm_start, storm_end FROM storm_events WHERE storm_id = ?",
-        [STORM_ID],
-    ).fetchone()
-    storm_start = pd.Timestamp(row[0])
-    storm_end = pd.Timestamp(row[1])
+    # Storm metadata — find the storm that started on STORM_DATE
+    row = con.execute("""
+        SELECT storm_id, storm_start, storm_end
+        FROM storm_events
+        WHERE storm_start >= ? AND storm_start < ?
+        ORDER BY event_count DESC, storm_id DESC
+        LIMIT 1
+    """, [STORM_DATE, str(pd.Timestamp(STORM_DATE) + pd.Timedelta(days=1))]).fetchone()
+    if row is None:
+        raise SystemExit(f"No storm found starting on {STORM_DATE}")
+    storm_start = pd.Timestamp(row[1])
+    storm_end   = pd.Timestamp(row[2])
 
     # All sensors deployed at storm time (one row per sensor)
     deployed = con.execute("""
@@ -90,32 +95,39 @@ def main():
         GROUP BY sensor_id
     """, [storm_start]).df()
 
-    # Flood events for this storm (with profiles)
+    # Flood events for this storm (with profiles) — filtered by time range,
+    # not storm_id, so results are stable regardless of pipeline re-runs.
     floods = con.execute("""
         SELECT sensor_id, flood_start_time,
                flood_profile_depth_inches,
                flood_profile_time_secs
         FROM flood_events
-        WHERE storm_id = ? AND latitude IS NOT NULL AND longitude IS NOT NULL
-    """, [STORM_ID]).df()
+        WHERE flood_start_time >= ? AND flood_start_time <= ?
+          AND latitude IS NOT NULL AND longitude IS NOT NULL
+    """, [storm_start, storm_end]).df()
 
-    # 311 complaints
+    # 311 complaints — created_date is stored as naive Eastern Time (as returned
+    # by the NYC 311 API), so convert the UTC storm window to ET before filtering.
+    storm_start_et = storm_start.tz_localize("UTC").tz_convert("America/New_York").tz_localize(None)
+    storm_end_et   = storm_end.tz_localize("UTC").tz_convert("America/New_York").tz_localize(None)
     complaints = con.execute("""
         SELECT latitude, longitude, descriptor, borough, created_date
         FROM complaints_311
-        WHERE storm_id = ? AND latitude IS NOT NULL AND longitude IS NOT NULL
-    """, [STORM_ID]).df()
+        WHERE created_date >= ? AND created_date <= ?
+          AND latitude IS NOT NULL AND longitude IS NOT NULL
+    """, [storm_start_et, storm_end_et]).df()
 
     # ------------------------------------------------------------------
     # MRMS VIL raster frames — {t_ms, png_b64} per frame.
     # png_b64 is None for frames where max VIL < VIL_SHOW_MIN (no visible content).
+    # Queried by timestamp so it's independent of pipeline storm_id assignment.
     # ------------------------------------------------------------------
     vil_rows = con.execute("""
         SELECT timestamp_utc, n_lat, n_lon, vil_flat
         FROM mrms_vil
-        WHERE storm_id = ?
+        WHERE timestamp_utc >= ? AND timestamp_utc <= ?
         ORDER BY timestamp_utc
-    """, [STORM_ID]).fetchall()
+    """, [storm_start, storm_end]).fetchall()
 
     con.close()
 

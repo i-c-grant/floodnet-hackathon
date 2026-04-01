@@ -1,16 +1,18 @@
 """
-Orchestration pipeline: fetch FloodNet events + NYC 311 complaints for a date
-range and load both into a persistent DuckDB database.
+Orchestration pipeline: fetch FloodNet events, NYC 311 complaints, and MRMS VIL
+radar for a date range and load all into a persistent DuckDB database.
 
 Usage:
     python pipeline.py --start 2024-09-01 --end 2024-09-30
     python pipeline.py --start 2023-01-01 --end 2026-03-28 --storm-gap-hours 6
+    python pipeline.py --start 2025-10-30 --end 2025-10-31 --force-download
 
 Database: output/floodnet.duckdb
 Tables:
     storm_events    — clustered storm periods (greedy temporal merge of sensor events)
     flood_events    — FloodNet sensor events joined with deployment metadata + storm_id
     complaints_311  — NYC 311 flood-related complaints + storm_id
+    mrms_vil        — NOAA MRMS VIL raster frames clipped to NYC bbox
 """
 
 import argparse
@@ -28,6 +30,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 
 from query_floods import fetch_events, fetch_metadata
 from query_311 import fetch_311
+from query_mrms import ingest_mrms
 
 load_dotenv()
 
@@ -287,11 +290,15 @@ def main():
     """Entry point: parse args, run the full ingestion pipeline, write to DuckDB."""
     log = setup_logging()
 
-    parser = argparse.ArgumentParser(description="FloodNet + 311 ingestion pipeline")
+    parser = argparse.ArgumentParser(description="FloodNet + 311 + MRMS ingestion pipeline")
     parser.add_argument("--start", required=True, help="Start date YYYY-MM-DD")
     parser.add_argument("--end", required=True, help="End date YYYY-MM-DD")
     parser.add_argument("--storm-gap-hours", type=float, default=3.0,
                         help="Hours of inactivity between sensor events before a new storm is declared (default: 3)")
+    parser.add_argument("--interval-min", type=int, default=5,
+                        help="MRMS sampling interval in minutes (default: 5)")
+    parser.add_argument("--force-download", action="store_true",
+                        help="Re-download MRMS data from S3 even if already in DB")
     args = parser.parse_args()
 
     for val, name in [(args.start, "start"), (args.end, "end")]:
@@ -301,7 +308,7 @@ def main():
             log.error(f"--{name} must be YYYY-MM-DD, got '{val}'")
             sys.exit(1)
 
-    log.info(f"=== Pipeline start: {args.start} → {args.end} (storm gap: {args.storm_gap_hours}h) ===")
+    log.info(f"=== Pipeline start: {args.start} → {args.end} (storm gap: {args.storm_gap_hours}h, MRMS interval: {args.interval_min}min) ===")
     con = duckdb.connect(str(DB_PATH))
 
     # --- FloodNet ---
@@ -356,6 +363,19 @@ def main():
         log.info(f"complaints_311: {complaints_total} total rows in DB")
     else:
         log.info("No 311 complaints found for any storm window")
+
+    # --- MRMS: one ingest per storm ---
+    log.info(f"Ingesting MRMS VIL for {len(valid_storms)} storms...")
+    for _, storm in valid_storms.iterrows():
+        log.info(f"Storm {storm['storm_id']}: {storm['storm_start']} → {storm['storm_end']} UTC")
+        ingest_mrms(
+            con,
+            storm_id=int(storm["storm_id"]),
+            storm_start=pd.Timestamp(storm["storm_start"]),
+            storm_end=pd.Timestamp(storm["storm_end"]),
+            interval_min=args.interval_min,
+            force_download=args.force_download,
+        )
 
     con.close()
     log.info(f"=== Pipeline complete. Database: {DB_PATH.resolve()} ===")

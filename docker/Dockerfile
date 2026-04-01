@@ -5,8 +5,9 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 ENV UV_SYSTEM_PYTHON=1
+ENV PYTHONPATH=/app/src
 
-# eccodes C library — required by cfgrib for GRIB2 decoding (MRMS VIL)
+# eccodes C library — required for GRIB2 decoding (MRMS VIL)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libeccodes-dev \
  && rm -rf /var/lib/apt/lists/*
@@ -17,15 +18,13 @@ RUN uv pip install --no-cache \
     geopandas \
     pyogrio \
     shapely \
-    folium \
     matplotlib \
     pandas \
     requests \
     python-dotenv \
     duckdb \
     tqdm \
-    xarray \
-    cfgrib
+    eccodes
 
 COPY . .
 
