@@ -581,7 +581,7 @@ const deckgl = new Deck({
       const depth = depthCache[object.id] || 0;
       html = `<b>${object.name}</b><br>`
            + (depth > 0
-               ? `<span style="color:#7ab9f5">${depth.toFixed(1)} in depth</span>`
+               ? `<span style="color:#7ab9f5">${depth.toFixed(1)} in</span>`
                : `<span style="opacity:0.55">No active flood</span>`);
     } else if (id === 'complaints') {
       html = `<b>${object.descriptor}</b>`;
