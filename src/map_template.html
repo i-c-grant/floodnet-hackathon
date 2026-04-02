@@ -408,7 +408,7 @@
     <span id="current-time">—</span>
   </div>
   <div id="tl-controls">
-    <button id="play-btn" aria-label="Play">&#9654;</button>
+    <button id="play-btn" aria-label="Play">&#9654;&#xFE0E;</button>
     <input type="range" id="scrubber" min="0" max="10000" value="0" aria-label="Timeline">
     <select id="speed-select" aria-label="Speed">
       <option value="1">1×</option>
@@ -736,7 +736,7 @@ function tick(realTime) {
 // ── Controls ───────────────────────────────────────────────────────
 document.getElementById('play-btn').addEventListener('click', () => {
   isPlaying = !isPlaying;
-  document.getElementById('play-btn').innerHTML = isPlaying ? '<span style="font-size:20px;position:relative;top:-1px">&#9208;</span>' : '&#9654;';
+  document.getElementById('play-btn').innerHTML = isPlaying ? '<span style="font-size:20px;position:relative;top:-1px">&#9208;&#xFE0E;</span>' : '&#9654;&#xFE0E;';
   if (isPlaying) {
     if (currentT >= STORM_END_MS) currentT = STORM_START_MS;
     prevRaf = null;
