@@ -284,11 +284,68 @@
     /* ── Tooltip ─────────────────────────────────────────────────── */
     /* deck.gl injects tooltip via getTooltip — we style via the
        returned style object, not CSS class */
+
+    /* ── Mobile panel toggle ─────────────────────────────────────── */
+    #panel-toggle {
+      display: none; /* hidden on desktop */
+    }
+
+    @media (max-width: 600px) {
+      #panel {
+        top: 0;
+        left: 0;
+        width: min(300px, calc(100vw - 48px));
+        max-height: 100vh;
+        border-radius: 0 14px 14px 0;
+        padding-top: 16px;
+        transform: translateX(-110%);
+        transition: transform 0.25s ease;
+        background: rgba(255,255,255,0.08);
+        z-index: 200;
+      }
+      #panel.open {
+        transform: translateX(0);
+      }
+      /* dim overlay behind the panel */
+      #panel-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: 199;
+      }
+      #panel-backdrop.open {
+        display: block;
+      }
+      #panel-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 2.5px solid rgba(0,0,0,0.40);
+        background: rgba(255,255,255,0.92);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        font-size: 17px;
+        cursor: pointer;
+        z-index: 201;
+        color: #333;
+        line-height: 1;
+      }
+    }
   </style>
 </head>
 <body>
 
 <div id="container"></div>
+
+<div id="panel-backdrop"></div>
+<button id="panel-toggle" aria-label="Open panel">&#9776;</button>
 
 <div id="panel">
 
@@ -704,6 +761,29 @@ if (MRMS_FRAMES.length > 0) {
     showMrms = e.target.checked; render(currentT);
   });
 }
+
+// ── Mobile panel toggle ────────────────────────────────────────────
+(function () {
+  const panel    = document.getElementById('panel');
+  const backdrop = document.getElementById('panel-backdrop');
+  const btn      = document.getElementById('panel-toggle');
+
+  function openPanel() {
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    btn.innerHTML = '&#10005;'; // ✕
+  }
+  function closePanel() {
+    panel.classList.remove('open');
+    backdrop.classList.remove('open');
+    btn.innerHTML = '&#9776;'; // ☰
+  }
+
+  btn.addEventListener('click', () =>
+    panel.classList.contains('open') ? closePanel() : openPanel()
+  );
+  backdrop.addEventListener('click', closePanel);
+})();
 
 // Initial render
 render(currentT);
