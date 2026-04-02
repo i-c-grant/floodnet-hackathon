@@ -1,4 +1,4 @@
-.PHONY: build run run-oct30 map mrms-force pipeline pipeline-oct30 publish
+.PHONY: build run run-oct30 map mrms-force pipeline pipeline-oct30 publish gif gif-build
 
 IMAGE      := floodnet-hackathon
 RUN        := docker run --rm --env-file .env -v $(PWD)/output:/app/output $(IMAGE)
@@ -40,3 +40,14 @@ pipeline-oct30:
 # Copy generated map to docs/ for GitHub Pages
 publish: map
 	cp output/storm_oct30.html docs/index.html
+
+# Build the GIF capture image
+gif-build:
+	docker build -t floodnet-gif -f docker/Dockerfile.gif .
+
+# Capture animated GIF from the generated map (14:00–17:00 ET, 15 s)
+gif: gif-build
+	docker run --rm \
+		-v $(PWD)/output:/app/output \
+		-v $(PWD)/scripts:/app/scripts \
+		floodnet-gif python /app/scripts/capture_gif.py

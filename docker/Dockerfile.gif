@@ -1,0 +1,6 @@
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
+
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN pip install playwright pytz
+
+WORKDIR /app
