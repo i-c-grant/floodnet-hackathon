@@ -162,6 +162,12 @@
       z-index: 100;
       overflow-y: auto;
     }
+    /* When an expandable section is open, let the panel overflow so the
+       section's own scrollbar is the active scroll container. */
+    #panel:has(#methodology:hover),
+    #panel:has(#sources:hover) {
+      overflow: visible;
+    }
 
     /* ── Title ───────────────────────────────────────────────────── */
     #title {
@@ -209,9 +215,10 @@
     }
 
     #methodology:hover #methodology-body {
-      max-height: 600px;
+      max-height: calc(100vh - 340px);
       opacity: 1;
       margin-top: 6px;
+      overflow-y: auto;
     }
 
     #methodology-body p {
@@ -253,9 +260,10 @@
     }
 
     #sources:hover #sources-list {
-      max-height: 200px;
+      max-height: min(200px, calc(100vh - 220px));
       opacity: 1;
       margin-top: 6px;
+      overflow-y: auto;
     }
 
     #sources-list a {
