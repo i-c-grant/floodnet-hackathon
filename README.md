@@ -6,7 +6,7 @@ An animated, interactive map of the October 30, 2025 NYC rainstorm, combining th
 - **NYC 311 complaints** — flood- and sewer-related service requests filed during the storm
 - **NOAA MRMS radar** — Vertically Integrated Liquid (VIL) raster showing rain band intensity
 
-The live map is published at: **https://i-c-grant.github.io/floodnet-hackathon/**
+The animated map is published at: **https://i-c-grant.github.io/floodnet-hackathon/**
 
 ---
 
