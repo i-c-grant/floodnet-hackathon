@@ -771,12 +771,12 @@ if (MRMS_FRAMES.length > 0) {
   function openPanel() {
     panel.classList.add('open');
     backdrop.classList.add('open');
-    btn.innerHTML = '&#10005;'; // ✕
+    btn.style.display = 'none';
   }
   function closePanel() {
     panel.classList.remove('open');
     backdrop.classList.remove('open');
-    btn.innerHTML = '&#9776;'; // ☰
+    btn.style.display = '';
   }
 
   btn.addEventListener('click', () =>
