@@ -369,11 +369,11 @@
         <span style="font-size:12px; color:#666;">0"</span>
       </div>
       <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-        <svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12.5" fill="rgb(104,124,154)" stroke="white" stroke-width="1.5"/></svg>
+        <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="rgb(104,124,154)" stroke="white" stroke-width="1.5"/></svg>
         <span style="font-size:12px; color:#666;">12"</span>
       </div>
       <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-        <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20.5" fill="rgb(8,48,107)" stroke="white" stroke-width="1.5"/></svg>
+        <svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24.5" fill="rgb(8,48,107)" stroke="white" stroke-width="1.5"/></svg>
         <span style="font-size:12px; color:#666;">23"</span>
       </div>
     </div>
@@ -638,7 +638,7 @@ function buildLayers(t_ms) {
       getPosition: d => [d.lon, d.lat],
       getRadius: d => {
         const depth = depthCache[d.id];
-        return depth > 0 ? 5 + 25 * Math.min(depth / MAX_DEPTH, 1.0) : 5;
+        return depth > 0 ? 5 + 20 * Math.min(depth / MAX_DEPTH, 1.0) : 5;
       },
       getFillColor: d => {
         const depth = depthCache[d.id];
