@@ -165,7 +165,9 @@
     /* When an expandable section is open, let the panel overflow so the
        section's own scrollbar is the active scroll container. */
     #panel:has(#methodology:hover),
-    #panel:has(#sources:hover) {
+    #panel:has(#methodology.open),
+    #panel:has(#sources:hover),
+    #panel:has(#sources.open) {
       overflow: visible;
     }
 
@@ -202,7 +204,7 @@
       letter-spacing: 0.08em;
       font-size: 11px;
       color: #999;
-      cursor: default;
+      cursor: pointer;
     }
 
     #methodology-body {
@@ -214,7 +216,8 @@
       line-height: 1.6;
     }
 
-    #methodology:hover #methodology-body {
+    #methodology:hover #methodology-body,
+    #methodology.open #methodology-body {
       max-height: calc(100vh - 340px);
       opacity: 1;
       margin-top: 6px;
@@ -247,7 +250,7 @@
       letter-spacing: 0.08em;
       font-size: 11px;
       color: #999;
-      cursor: default;
+      cursor: pointer;
     }
 
     #sources-list {
@@ -259,7 +262,8 @@
       line-height: 1.7;
     }
 
-    #sources:hover #sources-list {
+    #sources:hover #sources-list,
+    #sources.open #sources-list {
       max-height: min(200px, calc(100vh - 220px));
       opacity: 1;
       margin-top: 6px;
@@ -353,14 +357,26 @@
 
 <div id="legend">
   <div class="lg-title">Legend</div>
-  <div class="lg-row">
-    <div class="lg-dot" style="background:#aaaaaa; opacity:0.75;"></div>
-    <span>Sensor — idle</span>
-    <input type="checkbox" id="toggle-sensors" checked>
-  </div>
-  <div class="lg-row">
-    <div class="lg-dot" style="background:#08306b;"></div>
-    <span>Sensor — flooding</span>
+  <!-- Size + color scale for sensors; 0" = idle gray -->
+  <div style="margin: 3px 0 4px;">
+    <div class="lg-row" style="margin-bottom:6px;">
+      <span>FloodNet sensor depth</span>
+      <input type="checkbox" id="toggle-sensors" checked>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+        <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.5" fill="rgba(170,170,170,0.75)" stroke="white" stroke-width="1.5"/></svg>
+        <span style="font-size:12px; color:#666;">0"</span>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+        <svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12.5" fill="rgb(104,124,154)" stroke="white" stroke-width="1.5"/></svg>
+        <span style="font-size:12px; color:#666;">12"</span>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+        <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20.5" fill="rgb(8,48,107)" stroke="white" stroke-width="1.5"/></svg>
+        <span style="font-size:12px; color:#666;">23"</span>
+      </div>
+    </div>
   </div>
   <div class="lg-row">
     <div style="width:14px; height:14px; background:#fff000; border:1.5px solid #000; flex-shrink:0; align-self:center;"></div>
@@ -369,7 +385,7 @@
   </div>
   <div id="mrms-legend-row" style="display:none; margin-top:7px;">
     <div class="lg-title" style="margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">Radar VIL (kg/m²)<input type="checkbox" id="toggle-mrms" checked></div>
-    <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:4px;">
+    <div style="display:flex; justify-content:space-between; font-size:13px; color:#666; margin-bottom:4px;">
       <span>4</span><span>8</span><span>12</span><span>15+</span>
     </div>
     <div style="height:9px; border-radius:3px; background:linear-gradient(to right,
@@ -620,18 +636,17 @@ function buildLayers(t_ms) {
       getPosition: d => [d.lon, d.lat],
       getRadius: d => {
         const depth = depthCache[d.id];
-        return depth > 0 ? 196 + 900 * Math.min(depth / MAX_DEPTH, 1.0) : 196;
+        return depth > 0 ? 5 + 25 * Math.min(depth / MAX_DEPTH, 1.0) : 5;
       },
       getFillColor: d => {
         const depth = depthCache[d.id];
         if (depth > 0) return [...depthToRGB(depth), 230];
         return [140, 140, 140, 220];
       },
-      radiusUnits: 'meters',
-      radiusMinPixels: 2,
+      radiusUnits: 'pixels',
       stroked: true,
       getLineColor: [255, 255, 255, 220],
-      getLineWidth: d => depthCache[d.id] > 0 ? 3 : 1.5,
+      getLineWidth: d => depthCache[d.id] > 0 ? 2 : 1,
       lineWidthUnits: 'pixels',
       updateTriggers: { getRadius: frameId, getFillColor: frameId, getLineWidth: frameId },
       pickable: true,
@@ -761,6 +776,14 @@ if (MRMS_FRAMES.length > 0) {
   document.getElementById('mrms-legend-row').style.display = '';
   document.getElementById('toggle-mrms').addEventListener('change', e => {
     showMrms = e.target.checked; render(currentT);
+  });
+}
+
+// ── Methodology / Sources: click-toggle on touch, hover-only on desktop ──
+if (window.matchMedia('(hover: none)').matches) {
+  ['methodology', 'sources'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('click', () => el.classList.toggle('open'));
   });
 }
 
