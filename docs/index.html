@@ -62,7 +62,7 @@
       border: 2.5px solid rgba(0, 0, 0, 0.40);
       background: rgba(0, 0, 0, 0.06);
       color: #111;
-      font-size: 13px;
+      font-size: 15px;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
@@ -671,7 +671,7 @@ function tick(realTime) {
 // ── Controls ───────────────────────────────────────────────────────
 document.getElementById('play-btn').addEventListener('click', () => {
   isPlaying = !isPlaying;
-  document.getElementById('play-btn').innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
+  document.getElementById('play-btn').innerHTML = isPlaying ? '<span style="font-size:20px;position:relative;top:-1px">&#9208;</span>' : '&#9654;';
   if (isPlaying) {
     if (currentT >= STORM_END_MS) currentT = STORM_START_MS;
     prevRaf = null;
