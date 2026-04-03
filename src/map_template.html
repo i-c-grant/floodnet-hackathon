@@ -604,7 +604,7 @@ function buildLayers(t_ms) {
     // Basemap — CartoDB Positron raster tiles
     new TileLayer({
       id: 'basemap',
-      data: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+      data: 'https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png',
       maxZoom: 19, minZoom: 0,
       renderSubLayers(props) {
         const { west, south, east, north } = props.tile.bbox;

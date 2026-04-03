@@ -1,12 +1,12 @@
 """
-Capture an animated GIF of the Oct 30 storm map.
+Capture an MP4 of the Oct 30 storm map.
 
-Renders storm time 14:30–16:00 ET into a ~15-second GIF, cropped to the
+Renders storm time 14:30–17:00 ET into a ~15-second MP4, cropped to the
 map canvas only (panel and timeline bar removed).
-Output: /app/output/storm_oct30.gif
+Output: /app/output/storm_oct30.mp4
 
 Usage (via make):
-    make gif
+    make mp4
 """
 
 import asyncio
@@ -20,16 +20,15 @@ from playwright.async_api import async_playwright
 # ── Time range ────────────────────────────────────────────────────────
 ET = pytz.timezone("America/New_York")
 START_MS = int(ET.localize(datetime(2025, 10, 30, 14, 30, 0)).timestamp() * 1000)
-END_MS   = int(ET.localize(datetime(2025, 10, 30, 16,  0, 0)).timestamp() * 1000)
+END_MS   = int(ET.localize(datetime(2025, 10, 30, 17,  0, 0)).timestamp() * 1000)
 
 # ── Output settings ───────────────────────────────────────────────────
-FRAMES_DIR  = Path("/tmp/gif_frames")
-OUTPUT_GIF  = Path("/app/output/storm_oct30.gif")
+FRAMES_DIR  = Path("/tmp/mp4_frames")
 OUTPUT_MP4  = Path("/app/output/storm_oct30.mp4")
 FPS         = 15
-DURATION_S  = 8           # target GIF length in seconds
+DURATION_S  = 15          # target length in seconds
 N_FRAMES    = FPS * DURATION_S
-STEP_MS     = (END_MS - START_MS) // N_FRAMES   # ~48 storm-seconds per frame
+STEP_MS     = (END_MS - START_MS) // N_FRAMES
 
 # ── Map settings ─────────────────────────────────────────────────────
 VIEWPORT    = {"width": 1200, "height": 800}
@@ -68,23 +67,6 @@ async def main() -> None:
                 print(f"  {i + 1}/{N_FRAMES}")
 
         await browser.close()
-
-    print("Assembling GIF…")
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-framerate", str(FPS),
-        "-i", str(FRAMES_DIR / "frame_%04d.png"),
-        "-vf", (
-            # Crop: remove left panel, bottom timeline, top 25%, right 40%.
-            "crop=546:506:290:169,"
-            f"fps={FPS},"
-            "split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer"
-        ),
-        str(OUTPUT_GIF),
-    ], check=True)
-
-    size_mb = OUTPUT_GIF.stat().st_size / 1_048_576
-    print(f"✓  Written: {OUTPUT_GIF}  ({size_mb:.1f} MB)")
 
     print("Assembling MP4…")
     subprocess.run([
